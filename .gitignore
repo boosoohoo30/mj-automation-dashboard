@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+*.db
+*.db-shm
+*.db-wal
+packages/backend/assets/*
+!packages/backend/assets/.gitkeep
+.claude/settings.local.json
