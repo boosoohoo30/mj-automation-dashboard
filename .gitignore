@@ -1,9 +1,28 @@
+# 환경변수 (API 키 보호)
+.env
+.env.local
+.env.production
+
+# 생성물 (용량이 크므로 Git 제외)
+output/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
 node_modules/
 dist/
-.env
-*.db
-*.db-shm
-*.db-wal
-packages/backend/assets/*
-!packages/backend/assets/.gitkeep
-.claude/settings.local.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# 임시 파일
+*.tmp
+*.log

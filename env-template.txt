@@ -1,0 +1,36 @@
+# ============================================================
+# AI Media Company - 환경변수 템플릿
+# 이 파일을 .env로 복사한 뒤 실제 값을 입력하세요
+# cp env-template.txt .env
+# ============================================================
+
+# --- AI ---
+ANTHROPIC_API_KEY=           # Claude API 키
+
+# --- 이미지 생성 ---
+COMFYUI_URL=http://127.0.0.1:8188    # ComfyUI 로컬 서버
+
+# --- 영상 생성 ---
+PIXVERSE_API_KEY=            # PixVerse V6 API 키
+
+# --- 음성/음향 ---
+ELEVENLABS_API_KEY=          # ElevenLabs API 키
+
+# --- 배포 ---
+UPLOAD_POST_API_KEY=         # Upload-Post.com API 키
+
+# --- Instagram ---
+INSTAGRAM_ACCESS_TOKEN=      # Instagram Graph API 토큰
+INSTAGRAM_BUSINESS_ACCOUNT_ID=  # 비즈니스 계정 ID
+
+# --- X (Twitter) ---
+X_BEARER_TOKEN=              # X API Bearer Token
+X_API_KEY=                   # X API Key
+X_API_SECRET=                # X API Secret
+
+# --- 데이터/스크래핑 ---
+APIFY_API_KEY=               # Apify API 키
+GOOGLE_SHEET_ID=             # 성과 DB 구글 시트 ID
+
+# --- 알림 ---
+SLACK_WEBHOOK_URL=           # 슬랙 Webhook URL (GATE 알림)
