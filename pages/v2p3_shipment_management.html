@@ -1,0 +1,840 @@
+
+<h2 class="sr-only">입출하 관리 — 과제별 Step 입출하 등록 및 이력</h2>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-size:14px;color:var(--color-text-primary);font-family:var(--font-sans)}
+.wrap{padding:20px 0}
+.topbar-title{font-size:16px;font-weight:500}
+.topbar-sub{font-size:12px;color:var(--color-text-secondary);margin-top:2px;margin-bottom:16px}
+
+/* Project selector bar */
+.proj-bar{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--color-background-secondary);border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);margin-bottom:16px;flex-wrap:wrap}
+select.proj-select{padding:5px 10px;font-size:13px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary);min-width:220px}
+select.proj-select:focus{outline:none;border-color:#185FA5}
+.proj-meta{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.proj-meta-item{font-size:12px;color:var(--color-text-secondary)}
+.proj-meta-item strong{color:var(--color-text-primary);font-weight:500}
+.proj-flow{display:flex;align-items:center;gap:4px;font-size:12px;margin-left:8px}
+.flow-step{padding:2px 8px;background:#E6F1FB;color:#185FA5;border-radius:3px;font-size:11px;font-weight:500}
+.flow-arrow{color:var(--color-text-secondary);font-size:10px}
+
+/* Step tabs */
+.step-tabs{display:flex;gap:0;border-bottom:1.5px solid var(--color-border-tertiary)}
+.step-tab{padding:9px 20px;font-size:13px;font-weight:500;cursor:pointer;color:var(--color-text-secondary);border-bottom:2px solid transparent;margin-bottom:-1.5px;transition:color 0.15s;user-select:none;display:flex;align-items:center;gap:6px}
+.step-tab:hover{color:var(--color-text-primary)}
+.step-tab.active{color:#185FA5;border-bottom-color:#185FA5}
+.tab-dot{width:6px;height:6px;border-radius:50%;background:var(--color-border-secondary);flex-shrink:0}
+.tab-dot.has-data{background:#27B26E}
+
+/* Step content panel */
+.step-panel{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-top:none;border-radius:0 0 var(--border-radius-lg) var(--border-radius-lg);padding:20px}
+.step-meta{font-size:12px;color:var(--color-text-secondary);margin-bottom:16px;padding-bottom:12px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.step-meta strong{color:var(--color-text-primary)}
+
+/* IN/OUT section */
+.io-section{margin-bottom:0}
+.io-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.io-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:0.04em}
+.io-badge.in{background:#E6F1FB;color:#0C447C}
+.io-badge.out{background:#EAF3DE;color:#27500A}
+.io-total{font-size:12px;color:var(--color-text-secondary)}
+.io-add-btn{padding:4px 12px;font-size:12px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);cursor:pointer;background:var(--color-background-primary);color:var(--color-text-primary);display:inline-flex;align-items:center;gap:5px;margin-left:auto}
+.io-add-btn:hover{background:var(--color-background-secondary)}
+.io-add-btn.parse{border-color:#185FA5;color:#185FA5;background:#EDF4FB}
+.io-add-btn.parse:hover{background:#C8DEF5}
+.io-add-btn.excel{border-color:#3B6D11;color:#3B6D11;background:#EAF3DE}
+.io-add-btn.excel:hover{background:#C3E29A}
+.io-divider{border:none;border-top:1px dashed var(--color-border-secondary);margin:18px 0}
+
+/* Records table */
+.rec-wrap{overflow-x:auto}
+table.rec{width:100%;border-collapse:collapse;font-size:12px}
+table.rec th{padding:5px 10px;text-align:left;font-weight:500;font-size:11px;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);white-space:nowrap;text-transform:uppercase;letter-spacing:0.03em}
+table.rec td{padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary);white-space:nowrap;vertical-align:middle}
+table.rec tbody tr:last-child td{border-bottom:none}
+table.rec tbody tr:hover td{background:var(--color-background-secondary)}
+.rec-empty td{text-align:center;color:var(--color-text-secondary);font-size:12px;padding:16px!important}
+.mono{font-family:var(--font-mono);font-size:11px}
+
+/* badge */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.b-done{background:#EAF3DE;color:#27500A}
+.b-pend{background:#F1EFE8;color:#5F5E5A}
+
+/* Buttons */
+.btn{padding:6px 14px;font-size:13px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);cursor:pointer;background:var(--color-background-primary);color:var(--color-text-primary)}
+.btn:hover{background:var(--color-background-secondary)}
+.btn.sm{padding:4px 10px;font-size:12px}
+.btn.primary{background:#185FA5;color:#fff;border-color:#185FA5}
+.btn.primary:hover{background:#0E4A85}
+.btn.save{background:#3B6D11;color:#fff;border-color:#3B6D11}
+.btn.save:hover{background:#27500A}
+.del-btn{padding:2px 8px;font-size:11px;border:0.5px solid #F09595;border-radius:var(--border-radius-md);cursor:pointer;background:none;color:#A32D2D}
+.del-btn:hover{background:#FCEBEB}
+
+/* Empty state */
+.empty-state{text-align:center;padding:40px 20px;color:var(--color-text-secondary);font-size:13px;border:0.5px dashed var(--color-border-secondary);border-radius:var(--border-radius-lg);margin-top:16px}
+
+/* Modal */
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.28);z-index:200;display:none;align-items:center;justify-content:center}
+.backdrop.open{display:flex}
+.modal{background:var(--color-background-primary);border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);width:660px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.14)}
+.modal-header{padding:14px 20px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-title{font-size:14px;font-weight:500}
+.modal-close{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border:none;background:none;cursor:pointer;color:var(--color-text-secondary);font-size:16px;border-radius:var(--border-radius-md);line-height:1}
+.modal-close:hover{background:var(--color-background-secondary)}
+.modal-body{padding:16px 20px;overflow-y:auto;flex:1}
+.modal-footer{padding:12px 20px;border-top:0.5px solid var(--color-border-tertiary);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0}
+
+/* Form */
+.form-row{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;align-items:flex-end}
+.form-field{display:flex;flex-direction:column;gap:4px}
+.form-label{font-size:11px;color:var(--color-text-secondary);font-weight:500}
+.req{color:#A32D2D;font-size:10px}
+.form-input{padding:5px 9px;font-size:12px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary)}
+.form-input:focus{outline:none;border-color:#185FA5}
+input[type=date].form-input{min-width:130px}
+
+/* Lot table in modal */
+.lot-wrap{overflow-x:auto;margin-bottom:8px}
+table.lot{border-collapse:collapse;font-size:12px;width:100%}
+table.lot th{padding:5px 8px;font-size:11px;font-weight:500;color:var(--color-text-secondary);background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+table.lot td{padding:4px 5px;border:0.5px solid var(--color-border-tertiary);vertical-align:middle}
+table.lot input{width:100%;padding:4px 7px;font-size:12px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary)}
+table.lot input:focus{outline:none;border-color:#185FA5}
+.lot-seq{text-align:center;font-size:11px;font-weight:500;color:var(--color-text-secondary);background:var(--color-background-secondary);width:28px;padding:4px}
+.lot-del-btn{width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;border:0.5px solid var(--color-border-tertiary);border-radius:3px;cursor:pointer;background:none;color:var(--color-text-secondary);font-size:11px;line-height:1}
+.lot-del-btn:hover{background:#FCEBEB;color:#A32D2D;border-color:#F09595}
+.add-lot-btn{padding:4px 10px;font-size:12px;border:0.5px solid #185FA5;border-radius:var(--border-radius-md);cursor:pointer;background:#EDF4FB;color:#185FA5;display:inline-flex;align-items:center;gap:4px;margin-top:6px}
+.add-lot-btn:hover{background:#C8DEF5}
+.lot-summary{font-size:11px;color:var(--color-text-secondary);margin-top:8px;padding:6px 10px;background:var(--color-background-secondary);border-radius:var(--border-radius-md)}
+
+/* Parse */
+.parse-area{width:100%;height:150px;padding:10px;font-size:11px;font-family:var(--font-mono);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary);resize:vertical}
+.parse-area:focus{outline:none;border-color:#185FA5}
+.parse-ok{padding:7px 12px;background:#EAF3DE;color:#27500A;border-radius:var(--border-radius-md);font-size:12px}
+.parse-warn{padding:7px 12px;background:#FAEEDA;color:#633806;border-radius:var(--border-radius-md);font-size:12px}
+
+/* Excel upload */
+.upload-zone{border:1.5px dashed var(--color-border-secondary);border-radius:var(--border-radius-lg);padding:24px 20px;text-align:center;cursor:pointer;color:var(--color-text-secondary);font-size:13px;display:block;transition:border-color 0.15s,background 0.15s}
+.upload-zone:hover{border-color:#185FA5;background:#F0F7FF}
+.upload-zone input[type=file]{display:none}
+.hint-box{font-size:11px;color:var(--color-text-secondary);background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:8px 12px;margin-bottom:10px}
+</style>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="topbar-title">입출하 관리</div>
+    <div class="topbar-sub">과제별 Step 입출하 등록 및 이력 관리</div>
+  </div>
+
+  <!-- 과제 선택 바 -->
+  <div class="proj-bar">
+    <select class="proj-select" id="projSel" onchange="selectProject(+this.value)">
+      <option value="-1">— 과제 선택 —</option>
+    </select>
+    <div class="proj-meta" id="projMeta" style="display:none">
+      <div class="proj-meta-item">고객사 <strong id="m-cust"></strong></div>
+      <div class="proj-meta-item">AL Code <strong class="mono" id="m-al"></strong></div>
+      <div class="proj-meta-item">Start Qty <strong id="m-qty"></strong></div>
+      <div class="proj-meta-item">분류 <strong id="m-cls"></strong></div>
+      <div class="proj-meta-item">TM Code <strong class="mono" id="m-tm"></strong></div>
+      <div class="proj-meta-item">출고처리 <span id="m-ship"></span></div>
+      <div class="proj-flow" id="m-flow"></div>
+    </div>
+  </div>
+
+  <!-- Step 탭 + 패널 -->
+  <div id="stepBlock" style="display:none">
+    <div class="step-tabs" id="tabList"></div>
+    <div class="step-panel" id="stepPanel"></div>
+  </div>
+
+  <div class="empty-state" id="emptyState">
+    과제를 선택하면 Step별 입출하를 등록하고 이력을 조회할 수 있습니다.
+  </div>
+</div>
+
+<!-- 모달 -->
+<div class="backdrop" id="backdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle"></span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<script>
+// ── 데이터 ──────────────────────────────────────────────────────────────────
+const PROJECTS = [
+  {id:0,customer:'A',name:'SI0136A',alCode:'BX4K72A',cls:'MPW',qty:40,unit:'EA',tmCode:'TMWC09_C16',netDie:'',
+   steps:[{step:'FAB',vendor:'TSMC',factory:'FAB12'}],shipped:false},
+  {id:1,customer:'B',name:'ANA38413_N1C',alCode:'TR9M21A',cls:'Pilot Wafer',qty:2,unit:'PCS',tmCode:'TMVZ07',netDie:'850',
+   steps:[{step:'FAB',vendor:'TSMC',factory:'FAB12'},{step:'CP',vendor:'GMTest',factory:''}],shipped:false},
+  {id:3,customer:'C',name:'Ratel_N1C',alCode:'PJ2H67A',cls:'Production Wafer',qty:6,unit:'PCS',tmCode:'TMMQ65',netDie:'1200',
+   steps:[{step:'FAB',vendor:'TSMC',factory:'FAB8'},{step:'ASSEMBLY',vendor:'Amkor',factory:'K5'},{step:'FT',vendor:'ITEK',factory:''}],shipped:false},
+  {id:4,customer:'A',name:'FALCON_N1B',alCode:'QN8L44A',cls:'Production Wafer',qty:75,unit:'PCS',tmCode:'TMSV86',netDie:'',
+   steps:[{step:'FAB',vendor:'TSMC',factory:'FAB8'}],shipped:true},
+  {id:6,customer:'C',name:'Tachy-BS4_N1A',alCode:'HL6T38A',cls:'Production Wafer',qty:25,unit:'PCS',tmCode:'TMUE69',netDie:'620',
+   steps:[{step:'FAB',vendor:'TSMC',factory:'FAB5'},{step:'FT',vendor:'ITEK',factory:''}],shipped:false},
+];
+
+// 샘플 이력 데이터
+// dir: 'IN'|'OUT'  /  lots: 배열 (step별 key 구조 다름)
+let RECORDS = [
+  // Ratel_N1C — FAB
+  {id:1,pid:3,step:'FAB',dir:'IN', date:'2026-02-01',vendor:'TSMC',factory:'FAB8',
+   lots:[{qty:'6'}], note:''},
+  {id:2,pid:3,step:'FAB',dir:'OUT',date:'2026-04-25',vendor:'TSMC',factory:'FAB8',
+   lots:[{lotId:'P65K0001',waferNo:'001~006',qty:'6',defect:'0'}],
+   note:'INV-2026-0425 / AWB 235-7812034'},
+  // Ratel_N1C — ASSEMBLY
+  {id:3,pid:3,step:'ASSEMBLY',dir:'IN',date:'2026-05-10',vendor:'Amkor',factory:'K5',
+   lots:[
+     {lotId:'LOT-A-1',waferQty:'2',netDie:'1200'},
+     {lotId:'LOT-A-2',waferQty:'2',netDie:'1200'},
+     {lotId:'LOT-A-3',waferQty:'2',netDie:'1200'},
+   ], note:''},
+  // ANA38413 — FAB
+  {id:4,pid:1,step:'FAB',dir:'IN', date:'2026-01-15',vendor:'TSMC',factory:'FAB12',
+   lots:[{qty:'2'}], note:''},
+  {id:5,pid:1,step:'FAB',dir:'OUT',date:'2026-03-20',vendor:'TSMC',factory:'FAB12',
+   lots:[{lotId:'P12N0041',waferNo:'001~002',qty:'2',defect:'0'}],
+   note:'INV-2026-0320'},
+  // ANA38413 — CP
+  {id:6,pid:1,step:'CP',dir:'IN',date:'2026-04-01',vendor:'GMTest',factory:'',
+   lots:[{lotId:'LOT-CP-001',waferQty:'2'}], note:''},
+];
+let nextId = 100;
+
+// ── Step별 입력 방식 정의 ─────────────────────────────────────────────────
+// OUT 입력 방식: FAB=파싱, CP/FT=엑셀, 그 외=수기
+const OUT_METHOD = {FAB:'parse', BUMP:'manual', CP:'excel', ASSEMBLY:'manual', FT:'excel', DPS:'manual'};
+
+// Step별 IN lot 필드 정의 (수기 입력 모달용)
+const IN_FIELDS = {
+  FAB:      [{k:'qty',      label:'투입 수량', unit:'PCS', type:'number'}],  // FAB IN은 단독 처리
+  BUMP:     [{k:'lotId',    label:'Lot ID',   type:'text',   w:130},
+             {k:'qty',      label:'Wafer',    unit:'PCS', type:'number', w:80}],
+  CP:       [{k:'lotId',    label:'Lot ID',   type:'text',   w:130},
+             {k:'waferQty', label:'Wafer',    unit:'PCS', type:'number', w:80}],
+  ASSEMBLY: [{k:'lotId',    label:'Lot ID',   type:'text',   w:130},
+             {k:'waferQty', label:'Wafer',    unit:'PCS', type:'number', w:70},
+             {k:'netDie',   label:'Net Die',  unit:'EA',  type:'number', w:90}],
+  FT:       [{k:'lotId',    label:'Lot ID',   type:'text',   w:130},
+             {k:'qty',      label:'PKG',      unit:'EA',  type:'number', w:80}],
+  DPS:      [{k:'lotId',    label:'Lot ID',   type:'text',   w:130},
+             {k:'qty',      label:'수량',     unit:'EA',  type:'number', w:80}],
+};
+
+// Step별 OUT lot 필드 정의 (수기 입력 모달용 — parse/excel은 별도)
+const OUT_FIELDS = {
+  BUMP:     [{k:'lotId',   label:'Lot ID',    type:'text',   w:130},
+             {k:'qty',     label:'PCS',       unit:'PCS', type:'number', w:70},
+             {k:'goodDie', label:'Good Die',  unit:'EA',  type:'number', w:90},
+             {k:'yield',   label:'Yield',     unit:'%',   type:'number', w:60}],
+  ASSEMBLY: [{k:'lotId',   label:'Lot ID',    type:'text',   w:130},
+             {k:'pkgQty',  label:'PKG',       unit:'EA',  type:'number', w:80},
+             {k:'defect',  label:'불량',      unit:'EA',  type:'number', w:70}],
+  DPS:      [{k:'shipQty', label:'출하',      unit:'EA',  type:'number', w:80},
+             {k:'remain',  label:'잔여',      unit:'EA',  type:'number', w:80}],
+};
+
+// 이력 테이블 컬럼 정의
+const REC_COLS = {
+  FAB: {
+    IN:  [{h:'투입일',f:'date'},{h:'업체',f:'vendor'},{h:'투입(PCS)',f:'qty0'},{h:'메모',f:'note'}],
+    OUT: [{h:'출하일',f:'date'},{h:'Lot ID',f:'lotId0',mono:true},{h:'Wafer No.',f:'waferNo0',mono:true},{h:'PCS',f:'qty0'},{h:'불량',f:'defect0'},{h:'메모',f:'note'}],
+  },
+  BUMP: {
+    IN:  [{h:'입고일',f:'date'},{h:'업체',f:'vendor'},{h:'Lot ID',f:'lotId0',mono:true},{h:'Wafer(PCS)',f:'qty0'},{h:'메모',f:'note'}],
+    OUT: [{h:'출고일',f:'date'},{h:'Lot ID',f:'lotId0',mono:true},{h:'PCS',f:'qty0'},{h:'Good Die(EA)',f:'goodDie0'},{h:'Yield%',f:'yield0'},{h:'메모',f:'note'}],
+  },
+  CP: {
+    IN:  [{h:'입고일',f:'date'},{h:'업체',f:'vendor'},{h:'Lot ID',f:'lotId0',mono:true},{h:'Wafer',f:'waferQty0'},{h:'메모',f:'note'}],
+    OUT: [{h:'출고일',f:'date'},{h:'업체',f:'vendor'},{h:'Lot 수',f:'lotCount'},{h:'Good Die 합계(EA)',f:'goodDieSum'},{h:'평균 Yield%',f:'yieldAvg'},{h:'메모',f:'note'}],
+  },
+  ASSEMBLY: {
+    IN:  [{h:'입고일',f:'date'},{h:'업체',f:'vendor'},{h:'Lot 수',f:'lotCount'},{h:'Wafer 합계(PCS)',f:'waferSum'},{h:'Net Die 합계(EA)',f:'netDieSum'},{h:'메모',f:'note'}],
+    OUT: [{h:'출고일',f:'date'},{h:'Lot 수',f:'lotCount'},{h:'PKG 합계(EA)',f:'pkgSum'},{h:'불량 합계(EA)',f:'defectSum'},{h:'메모',f:'note'}],
+  },
+  FT: {
+    IN:  [{h:'입고일',f:'date'},{h:'업체',f:'vendor'},{h:'Lot ID',f:'lotId0',mono:true},{h:'PKG(EA)',f:'qty0'},{h:'메모',f:'note'}],
+    OUT: [{h:'출고일',f:'date'},{h:'업체',f:'vendor'},{h:'Lot 수',f:'lotCount'},{h:'Good PKG 합계(EA)',f:'goodPkgSum'},{h:'평균 Yield%',f:'yieldAvg'},{h:'메모',f:'note'}],
+  },
+  DPS: {
+    IN:  [{h:'입고일',f:'date'},{h:'업체',f:'vendor'},{h:'수량(EA)',f:'qty0'},{h:'메모',f:'note'}],
+    OUT: [{h:'출고일',f:'date'},{h:'출하(EA)',f:'shipQty0'},{h:'잔여(EA)',f:'remain0'},{h:'메모',f:'note'}],
+  },
+};
+
+// ── 상태 ─────────────────────────────────────────────────────────────────
+let selPid = -1;
+let activeStep = null;
+let modalCtx = null;
+let modalLots = [];
+
+// ── 초기화 ────────────────────────────────────────────────────────────────
+(function init(){
+  const sel = document.getElementById('projSel');
+  PROJECTS.forEach(p=>{
+    const o = document.createElement('option');
+    o.value = p.id;
+    o.textContent = `${p.name}  (${p.customer} · ${p.alCode})`;
+    sel.appendChild(o);
+  });
+})();
+
+// ── 과제 선택 ─────────────────────────────────────────────────────────────
+function selectProject(id){
+  selPid = id;
+  if(id < 0){
+    document.getElementById('projMeta').style.display='none';
+    document.getElementById('stepBlock').style.display='none';
+    document.getElementById('emptyState').style.display='block';
+    return;
+  }
+  const p = PROJECTS.find(x=>x.id===id);
+  if(!p) return;
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('projMeta').style.display='flex';
+  document.getElementById('stepBlock').style.display='block';
+
+  document.getElementById('m-cust').textContent = p.customer;
+  document.getElementById('m-al').textContent = p.alCode;
+  document.getElementById('m-qty').textContent = `${p.qty} ${p.unit}`;
+  document.getElementById('m-cls').textContent = p.cls;
+  document.getElementById('m-tm').textContent = p.tmCode || '—';
+  document.getElementById('m-ship').innerHTML = p.shipped
+    ? '<span class="badge b-done">완료</span>'
+    : '<span class="badge b-pend">미완료</span>';
+  document.getElementById('m-flow').innerHTML = p.steps.map((s,i)=>
+    `${i>0?'<span class="flow-arrow">›</span>':''}<span class="flow-step">${s.step}</span>`
+  ).join('');
+
+  activeStep = p.steps[0].step;
+  renderTabs(p);
+  renderPanel(p);
+}
+
+// ── 탭 ───────────────────────────────────────────────────────────────────
+function renderTabs(p){
+  document.getElementById('tabList').innerHTML = p.steps.map(s=>{
+    const hasData = RECORDS.some(r=>r.pid===p.id&&r.step===s.step);
+    return `<div class="step-tab${s.step===activeStep?' active':''}" onclick="switchTab('${s.step}')">
+      <span class="tab-dot${hasData?' has-data':''}"></span>${s.step}
+    </div>`;
+  }).join('');
+}
+
+function switchTab(step){
+  activeStep = step;
+  const p = PROJECTS.find(x=>x.id===selPid);
+  renderTabs(p);
+  renderPanel(p);
+}
+
+// ── Step 패널 ─────────────────────────────────────────────────────────────
+function renderPanel(p){
+  const step = activeStep;
+  const si = p.steps.find(s=>s.step===step);
+  const inRecs  = RECORDS.filter(r=>r.pid===p.id&&r.step===step&&r.dir==='IN');
+  const outRecs = RECORDS.filter(r=>r.pid===p.id&&r.step===step&&r.dir==='OUT');
+  const om = OUT_METHOD[step]||'manual';
+
+  const outBtnCls = om==='parse'?'parse':om==='excel'?'excel':'';
+  const outBtnTxt = om==='parse'
+    ? '<i class="ti ti-file-text" aria-hidden="true"></i>메모장 파싱'
+    : om==='excel'
+    ? '<i class="ti ti-file-spreadsheet" aria-hidden="true"></i>엑셀 업로드'
+    : '<i class="ti ti-plus" aria-hidden="true"></i>OUT 등록';
+
+  document.getElementById('stepPanel').innerHTML = `
+    <div class="step-meta">
+      업체: <strong>${si.vendor||'—'}</strong>&nbsp;&nbsp;공장: <strong>${si.factory||'—'}</strong>
+    </div>
+
+    <div class="io-section">
+      <div class="io-header">
+        <span class="io-badge in">IN — 입고</span>
+        <span class="io-total">${calcTotal(inRecs,step,'IN')}</span>
+        <button class="io-add-btn" onclick="openModal('${step}','IN','manual')">
+          <i class="ti ti-plus" aria-hidden="true"></i>IN 등록
+        </button>
+      </div>
+      <div class="rec-wrap">${buildRecTable(inRecs,step,'IN')}</div>
+    </div>
+
+    <hr class="io-divider">
+
+    <div class="io-section">
+      <div class="io-header">
+        <span class="io-badge out">OUT — 출고</span>
+        <span class="io-total">${calcTotal(outRecs,step,'OUT')}</span>
+        <button class="io-add-btn ${outBtnCls}" onclick="openModal('${step}','OUT','${om}')">
+          ${outBtnTxt}
+        </button>
+      </div>
+      <div class="rec-wrap">${buildRecTable(outRecs,step,'OUT')}</div>
+    </div>
+  `;
+}
+
+// ── 합계 계산 ─────────────────────────────────────────────────────────────
+function calcTotal(recs, step, dir){
+  if(!recs.length) return '<span style="font-size:11px">기록 없음</span>';
+  const sum = (recs, key) => recs.reduce((a,r)=>a+r.lots.reduce((b,l)=>b+(+l[key]||0),0),0);
+  if(step==='FAB'&&dir==='IN')  return `합계 ${sum(recs,'qty')} PCS`;
+  if(step==='FAB'&&dir==='OUT') return `합계 ${sum(recs,'qty')} PCS`;
+  if(step==='ASSEMBLY'&&dir==='IN'){
+    const pcs=sum(recs,'waferQty'), die=recs.reduce((a,r)=>a+r.lots.reduce((b,l)=>b+((+l.waferQty||0)*(+l.netDie||0)),0),0);
+    return `합계 ${pcs} PCS / ${die.toLocaleString()} EA`;
+  }
+  if(step==='ASSEMBLY'&&dir==='OUT') return `합계 ${sum(recs,'pkgQty').toLocaleString()} EA`;
+  if(step==='CP'&&dir==='IN')   return `합계 ${sum(recs,'waferQty')} PCS`;
+  if(step==='CP'&&dir==='OUT')  return `Good Die 합계 ${sum(recs,'goodDie').toLocaleString()} EA`;
+  if(step==='FT'&&dir==='OUT')  return `Good PKG 합계 ${sum(recs,'goodPkg').toLocaleString()} EA`;
+  if(step==='BUMP'&&dir==='OUT')return `합계 ${sum(recs,'qty')} PCS / Good Die ${sum(recs,'goodDie').toLocaleString()} EA`;
+  return `${recs.length}건`;
+}
+
+// ── 이력 테이블 빌드 ──────────────────────────────────────────────────────
+function buildRecTable(recs, step, dir){
+  const cols = (REC_COLS[step]||{})[dir]||[];
+  if(!cols.length) return '';
+  const thead = cols.map(c=>`<th>${c.h}</th>`).join('')+'<th></th>';
+  if(!recs.length) return `<table class="rec"><thead><tr>${thead}</tr></thead>
+    <tbody><tr class="rec-empty"><td colspan="${cols.length+1}">등록된 기록이 없습니다</td></tr></tbody></table>`;
+
+  const rows = recs.map(r=>{
+    const cells = cols.map(c=>{
+      let v = getCellVal(r, c.f);
+      return `<td${c.mono?' class="mono"':''}>${v}</td>`;
+    }).join('');
+    return `<tr>${cells}<td><button class="del-btn" onclick="delRecord(${r.id})">삭제</button></td></tr>`;
+  }).join('');
+  return `<table class="rec"><thead><tr>${thead}</tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function getCellVal(r, f){
+  if(f==='date')     return r.date;
+  if(f==='vendor')   return r.vendor||'—';
+  if(f==='note')     return r.note||'—';
+  if(f==='lotCount') return r.lots.length+'건';
+  if(f==='waferSum') return r.lots.reduce((a,l)=>a+(+l.waferQty||0),0)+' PCS';
+  if(f==='netDieSum'){
+    const v=r.lots.reduce((a,l)=>a+((+l.waferQty||0)*(+l.netDie||0)),0);
+    return v.toLocaleString()+' EA';
+  }
+  if(f==='pkgSum')    return r.lots.reduce((a,l)=>a+(+l.pkgQty||0),0).toLocaleString()+' EA';
+  if(f==='defectSum') return r.lots.reduce((a,l)=>a+(+l.defect||0),0)+' EA';
+  if(f==='goodDieSum')return r.lots.reduce((a,l)=>a+(+l.goodDie||0),0).toLocaleString()+' EA';
+  if(f==='goodPkgSum')return r.lots.reduce((a,l)=>a+(+l.goodPkg||0),0).toLocaleString()+' EA';
+  if(f==='yieldAvg'){
+    const ys=r.lots.map(l=>+l.yieldPct||0).filter(x=>x>0);
+    return ys.length?(ys.reduce((a,b)=>a+b,0)/ys.length).toFixed(1)+'%':'—';
+  }
+  // field+0 패턴: lots[0]의 해당 키
+  if(f.endsWith('0')){
+    const key=f.slice(0,-1);
+    const v=r.lots[0]?r.lots[0][key]:undefined;
+    return (v===undefined||v==='')?'—':v;
+  }
+  return '—';
+}
+
+// ── 삭제 ─────────────────────────────────────────────────────────────────
+function delRecord(id){
+  if(!confirm('이 기록을 삭제하시겠습니까?')) return;
+  RECORDS = RECORDS.filter(r=>r.id!==id);
+  const p = PROJECTS.find(x=>x.id===selPid);
+  renderTabs(p); renderPanel(p);
+}
+
+// ── 모달 열기 ─────────────────────────────────────────────────────────────
+function openModal(step, dir, method){
+  modalCtx = {step, dir, method};
+  const p = PROJECTS.find(x=>x.id===selPid);
+  const si = p.steps.find(s=>s.step===step);
+  document.getElementById('modalTitle').textContent =
+    `${step} — ${dir==='IN'?'입고':'출고'} 등록`;
+  document.getElementById('backdrop').classList.add('open');
+
+  if(method==='parse')  buildParseModal(p, si);
+  else if(method==='excel') buildExcelModal(p, step, dir, si);
+  else buildManualModal(p, step, dir, si);
+}
+
+function closeModal(){
+  document.getElementById('backdrop').classList.remove('open');
+  modalCtx=null; modalLots=[];
+}
+
+document.getElementById('backdrop').addEventListener('click', e=>{
+  if(e.target===document.getElementById('backdrop')) closeModal();
+});
+
+// ── 수기 입력 모달 ────────────────────────────────────────────────────────
+function buildManualModal(p, step, dir, si){
+  const isFabIn = step==='FAB'&&dir==='IN';
+  const fields = dir==='IN' ? (IN_FIELDS[step]||[]) : (OUT_FIELDS[step]||[]);
+  const today = new Date().toISOString().slice(0,10);
+
+  if(isFabIn){
+    modalLots = [{qty:String(p.qty)}];
+  } else {
+    modalLots = [makeEmptyLot(fields)];
+  }
+
+  const topForm = `
+    <div class="form-row">
+      <div class="form-field">
+        <span class="form-label">${dir==='IN'?'입고일':'출고일'} <span class="req">*</span></span>
+        <input type="date" class="form-input" id="m-date" value="${today}">
+      </div>
+      <div class="form-field">
+        <span class="form-label">업체</span>
+        <input type="text" class="form-input" id="m-vendor" value="${si?.vendor||''}" style="width:110px">
+      </div>
+      <div class="form-field">
+        <span class="form-label">공장</span>
+        <input type="text" class="form-input" id="m-factory" value="${si?.factory||''}" style="width:90px">
+      </div>
+    </div>
+  `;
+
+  let body = topForm;
+
+  if(isFabIn){
+    body += `
+      <div class="form-row">
+        <div class="form-field">
+          <span class="form-label">투입 수량 (PCS) <span class="req">*</span></span>
+          <input type="number" class="form-input" id="fab-in-qty" value="${p.qty}" style="width:130px">
+          <span style="font-size:11px;color:var(--color-text-secondary);margin-top:3px">Start Qty: ${p.qty} ${p.unit}</span>
+        </div>
+        <div class="form-field">
+          <span class="form-label">메모</span>
+          <input type="text" class="form-input" id="m-note" placeholder="선택 입력" style="width:220px">
+        </div>
+      </div>
+    `;
+  } else {
+    body += `
+      <div class="lot-wrap" id="lotWrap">${buildLotTable(fields)}</div>
+      <button class="add-lot-btn" onclick="addLot()">
+        <i class="ti ti-plus" aria-hidden="true" style="font-size:12px"></i>Lot 추가
+      </button>
+      <div class="lot-summary" id="lotSummary"></div>
+      <div class="form-field" style="margin-top:12px">
+        <span class="form-label">메모</span>
+        <input type="text" class="form-input" id="m-note" placeholder="선택 입력" style="width:100%">
+      </div>
+    `;
+    setTimeout(updateSummary, 0);
+  }
+
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn sm" onclick="closeModal()">취소</button>
+    <button class="btn sm save" onclick="saveManual()">저장</button>
+  `;
+}
+
+function makeEmptyLot(fields){
+  return Object.fromEntries(fields.map(f=>[f.k,'']));
+}
+
+function buildLotTable(fields){
+  const ths = fields.map(f=>`<th style="min-width:${f.w||90}px">${f.label}${f.unit?` <span style="font-weight:400">(${f.unit})</span>`:''}</th>`).join('');
+  const rows = modalLots.map((lot,i)=>buildLotRow(lot,i,fields)).join('');
+  return `<table class="lot">
+    <thead><tr><th style="width:28px"></th>${ths}<th style="width:26px"></th></tr></thead>
+    <tbody id="lotBody">${rows}</tbody>
+  </table>`;
+}
+
+function buildLotRow(lot,i,fields){
+  const cells = fields.map(f=>`<td><input type="${f.type||'text'}" value="${lot[f.k]||''}"
+    oninput="updateLot(${i},'${f.k}',this.value)"></td>`).join('');
+  return `<tr id="lr-${i}">
+    <td class="lot-seq">${i+1}</td>${cells}
+    <td style="text-align:center">${i>0?`<button class="lot-del-btn" onclick="removeLot(${i})">✕</button>`:''}</td>
+  </tr>`;
+}
+
+function addLot(){
+  const {step,dir}=modalCtx;
+  const fields = dir==='IN'?(IN_FIELDS[step]||[]):(OUT_FIELDS[step]||[]);
+  modalLots.push(makeEmptyLot(fields));
+  document.getElementById('lotWrap').innerHTML=buildLotTable(fields);
+  updateSummary();
+}
+
+function removeLot(i){
+  const {step,dir}=modalCtx;
+  const fields = dir==='IN'?(IN_FIELDS[step]||[]):(OUT_FIELDS[step]||[]);
+  modalLots.splice(i,1);
+  document.getElementById('lotWrap').innerHTML=buildLotTable(fields);
+  updateSummary();
+}
+
+function updateLot(i,k,v){
+  if(modalLots[i]) modalLots[i][k]=v;
+  updateSummary();
+}
+
+function updateSummary(){
+  const el=document.getElementById('lotSummary');
+  if(!el) return;
+  const {step,dir}=modalCtx||{};
+  let txt='';
+  if(step==='ASSEMBLY'&&dir==='IN'){
+    const pcs=modalLots.reduce((a,l)=>a+(+l.waferQty||0),0);
+    const die=modalLots.reduce((a,l)=>a+((+l.waferQty||0)*(+l.netDie||0)),0);
+    txt=`합계 ${pcs} PCS / Net Die ${die.toLocaleString()} EA`;
+  } else if(step==='ASSEMBLY'&&dir==='OUT'){
+    const pkg=modalLots.reduce((a,l)=>a+(+l.pkgQty||0),0);
+    const def=modalLots.reduce((a,l)=>a+(+l.defect||0),0);
+    txt=`합계 ${pkg.toLocaleString()} EA  (불량 ${def} EA)`;
+  } else if(step==='BUMP'&&dir==='OUT'){
+    const pcs=modalLots.reduce((a,l)=>a+(+l.qty||0),0);
+    const die=modalLots.reduce((a,l)=>a+(+l.goodDie||0),0);
+    txt=`합계 ${pcs} PCS / Good Die ${die.toLocaleString()} EA`;
+  } else {
+    const q=modalLots.reduce((a,l)=>a+(+(l.qty||l.waferQty||l.pkgQty||0)),0);
+    if(q) txt=`합계 ${q.toLocaleString()}`;
+  }
+  el.textContent=txt;
+}
+
+function saveManual(){
+  const {step,dir}=modalCtx;
+  const isFabIn=step==='FAB'&&dir==='IN';
+  const date=document.getElementById('m-date')?.value||'';
+  const vendor=document.getElementById('m-vendor')?.value||'';
+  const factory=document.getElementById('m-factory')?.value||'';
+  const note=document.getElementById('m-note')?.value||'';
+  if(!date){alert('날짜를 입력해주세요.');return;}
+
+  let lots;
+  if(isFabIn){
+    const qty=document.getElementById('fab-in-qty')?.value||'';
+    lots=[{qty}];
+  } else {
+    lots=modalLots.map(l=>({...l}));
+    if(lots.every(l=>Object.values(l).every(v=>!v))){
+      alert('최소 1개의 Lot 정보를 입력해주세요.');return;
+    }
+  }
+
+  RECORDS.push({id:nextId++,pid:selPid,step,dir,date,vendor,factory,lots,note});
+  closeModal();
+  const p=PROJECTS.find(x=>x.id===selPid);
+  renderTabs(p); renderPanel(p);
+}
+
+// ── 메모장 파싱 모달 (FAB OUT 전용) ─────────────────────────────────────
+let parsedLots=[];
+
+function buildParseModal(p, si){
+  const today=new Date().toISOString().slice(0,10);
+  document.getElementById('modalBody').innerHTML=`
+    <div class="form-row">
+      <div class="form-field">
+        <span class="form-label">출하일 <span class="req">*</span></span>
+        <input type="date" class="form-input" id="m-date" value="${today}">
+      </div>
+    </div>
+    <div class="hint-box">
+      MPW: <code>과제명  TM Code  수량 EA → 다음줄 LotID #WaferNo</code><br>
+      Wafer: <code>LotID  * 수량 PCS</code>
+    </div>
+    <div class="form-field" style="margin-bottom:10px">
+      <span class="form-label">Invoice / Packing List 텍스트 붙여넣기 <span class="req">*</span></span>
+      <textarea class="parse-area" id="parseText"
+        placeholder="INVOICE NO.: INV-2026-0425&#10;INVOICE DATE: 2026-04-25&#10;HAWB NO. : 235-7812034&#10;&#10;P65K0001  * 6&#10;&#10;GRAND TOTAL: 6 PCS"></textarea>
+    </div>
+    <button class="btn sm primary" onclick="runParse()">파싱 실행</button>
+    <div id="parseResult" style="margin-top:12px"></div>
+  `;
+  document.getElementById('modalFooter').innerHTML=`
+    <button class="btn sm" onclick="closeModal()">취소</button>
+    <button class="btn sm save" id="parseSaveBtn" onclick="saveParse()" style="display:none">확인 저장</button>
+  `;
+  parsedLots=[];
+}
+
+function runParse(){
+  const text=document.getElementById('parseText').value;
+  parsedLots=[];
+  let invoiceNo='', awb='', grandTotal=0, parsedTotal=0;
+
+  text.split('\n').map(s=>s.trim()).filter(Boolean).forEach(line=>{
+    if(/^INVOICE NO\./i.test(line)) invoiceNo=line.split(':').slice(1).join(':').trim();
+    if(/^HAWB NO\./i.test(line))    awb=line.split(':').slice(1).join(':').trim();
+    if(/GRAND TOTAL/i.test(line)){const m=line.match(/(\d[\d,]*)/);if(m)grandTotal=+m[1].replace(/,/g,'');}
+    // Wafer: P65K0001  * 6
+    const wm=line.match(/^([A-Z0-9][A-Z0-9\-]+)\s+\*\s+(\d+)/);
+    if(wm){parsedLots.push({lotId:wm[1],waferNo:'',qty:wm[2],defect:'0'});parsedTotal+=+wm[2];return;}
+    // Wafer No 보충: LotID #001~006
+    const wnm=line.match(/^([A-Z0-9][A-Z0-9\-]+)\s+#(.+)/);
+    if(wnm&&parsedLots.length){
+      const last=parsedLots.findLast(l=>l.lotId===wnm[1]||!l.waferNo);
+      if(last) last.waferNo=wnm[2];
+      return;
+    }
+    // MPW EA qty
+    const em=line.match(/(\d+)\s+EA\b/);
+    if(em&&parsedLots.length===0){parsedLots.push({lotId:'',waferNo:'',qty:em[1],defect:'0'});parsedTotal+=+em[1];}
+  });
+
+  if(!parsedLots.length){
+    document.getElementById('parseResult').innerHTML='<div class="parse-warn">⚠️ 파싱된 항목이 없습니다. 형식을 확인해주세요.</div>';
+    document.getElementById('parseSaveBtn').style.display='none';
+    return;
+  }
+
+  const ok=grandTotal===0||grandTotal===parsedTotal;
+  const statusHtml = ok
+    ? `<div class="parse-ok" style="margin-bottom:8px">✅ 파싱 완료 — ${parsedLots.length}건 (합계 ${parsedTotal} PCS)${grandTotal?' · GRAND TOTAL 일치':''}</div>`
+    : `<div class="parse-warn" style="margin-bottom:8px">⚠️ 불일치 — GRAND TOTAL: ${grandTotal} / 파싱 합산: ${parsedTotal} / 차이: ${Math.abs(grandTotal-parsedTotal)}<br>저장은 가능합니다.</div>`;
+
+  const rows=parsedLots.map((l,i)=>`<tr>
+    <td>${i+1}</td><td class="mono">${l.lotId||'—'}</td>
+    <td class="mono">${l.waferNo||'—'}</td><td>${l.qty}</td><td>${l.defect}</td>
+  </tr>`).join('');
+
+  document.getElementById('parseResult').innerHTML=`${statusHtml}
+    <table class="rec">
+      <thead><tr><th>#</th><th>Lot ID</th><th>Wafer No.</th><th>QTY</th><th>불량</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:8px;font-size:11px;color:var(--color-text-secondary)">
+      ${invoiceNo?`Invoice: ${invoiceNo}&nbsp;&nbsp;`:''}${awb?`AWB: ${awb}`:''}
+    </div>`;
+  document.getElementById('parseSaveBtn').style.display='inline-block';
+}
+
+function saveParse(){
+  if(!parsedLots.length){alert('파싱된 데이터가 없습니다.');return;}
+  const date=document.getElementById('m-date')?.value||'';
+  if(!date){alert('날짜를 입력해주세요.');return;}
+  RECORDS.push({id:nextId++,pid:selPid,step:'FAB',dir:'OUT',date,vendor:'TSMC',factory:'',lots:parsedLots,note:'메모장 파싱'});
+  closeModal();
+  const p=PROJECTS.find(x=>x.id===selPid);
+  renderTabs(p); renderPanel(p);
+}
+
+// ── 엑셀 업로드 모달 (CP·FT OUT) ─────────────────────────────────────────
+let excelRows=[];
+
+function buildExcelModal(p, step, dir, si){
+  const today=new Date().toISOString().slice(0,10);
+  const isCpOut = step==='CP';
+  const hint = isCpOut
+    ? 'Lot ID | Wafer No. | Good Die (EA) | Yield (%)'
+    : 'Lot ID | PKG QTY (EA) | Good PKG (EA) | Yield (%)';
+  const demoLabel = isCpOut ? 'CP 데모 데이터 로드 (5행)' : 'FT 데모 데이터 로드 (2행)';
+
+  document.getElementById('modalBody').innerHTML=`
+    <div class="form-row">
+      <div class="form-field">
+        <span class="form-label">${dir==='IN'?'입고일':'출고일'} <span class="req">*</span></span>
+        <input type="date" class="form-input" id="m-date" value="${today}">
+      </div>
+      <div class="form-field">
+        <span class="form-label">업체</span>
+        <input type="text" class="form-input" id="m-vendor" value="${si?.vendor||''}" style="width:110px">
+      </div>
+    </div>
+    <div class="hint-box">
+      컬럼 순서: <code>${hint}</code>
+    </div>
+    <label class="upload-zone" style="margin-bottom:10px">
+      <input type="file" accept=".xlsx,.xls,.csv" onchange="handleFile(event)">
+      <div style="font-size:22px;margin-bottom:6px">📂</div>
+      <div>.xlsx / .xls / .csv 파일을 선택하세요</div>
+      <div style="font-size:11px;margin-top:4px;color:var(--color-text-secondary)">클릭하여 파일 선택</div>
+    </label>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:8px">
+      ※ 실제 구현 시 SheetJS(xlsx) 라이브러리로 파싱 &nbsp;|&nbsp;
+      <button class="btn sm" onclick="loadDemo('${step}')" style="font-size:11px">${demoLabel}</button>
+    </div>
+    <div id="xlPreview"></div>
+    <div class="form-field" style="margin-top:12px">
+      <span class="form-label">메모</span>
+      <input type="text" class="form-input" id="m-note" placeholder="선택 입력" style="width:100%">
+    </div>
+  `;
+  document.getElementById('modalFooter').innerHTML=`
+    <button class="btn sm" onclick="closeModal()">취소</button>
+    <button class="btn sm save" id="xlSaveBtn" onclick="saveExcel()" style="display:none">저장</button>
+  `;
+  excelRows=[];
+}
+
+function handleFile(e){
+  const f=e.target.files[0];
+  if(!f) return;
+  // 실제: SheetJS XLSX.read() 사용
+  document.getElementById('xlPreview').innerHTML=
+    `<div class="parse-ok">파일 선택됨: ${f.name}<br>실제 구현 시 SheetJS로 파싱합니다.</div>`;
+}
+
+function loadDemo(step){
+  if(step==='CP'){
+    excelRows=[
+      {lotId:'W-001',waferNo:'001',goodDie:'1185',yieldPct:'98.8'},
+      {lotId:'W-002',waferNo:'002',goodDie:'1172',yieldPct:'97.7'},
+      {lotId:'W-003',waferNo:'003',goodDie:'1190',yieldPct:'99.2'},
+      {lotId:'W-004',waferNo:'004',goodDie:'1155',yieldPct:'96.3'},
+      {lotId:'W-005',waferNo:'005',goodDie:'1178',yieldPct:'98.2'},
+    ];
+    const total=excelRows.reduce((a,r)=>a+(+r.goodDie||0),0);
+    const avgY=(excelRows.reduce((a,r)=>a+(+r.yieldPct||0),0)/excelRows.length).toFixed(1);
+    const rows=excelRows.map((r,i)=>`<tr>
+      <td>${i+1}</td><td class="mono">${r.lotId}</td><td class="mono">${r.waferNo}</td>
+      <td>${(+r.goodDie).toLocaleString()}</td><td>${r.yieldPct}%</td>
+    </tr>`).join('');
+    document.getElementById('xlPreview').innerHTML=`
+      <div class="parse-ok" style="margin-bottom:8px">✅ ${excelRows.length}건 로드 — Good Die 합계: ${total.toLocaleString()} EA / 평균 Yield: ${avgY}%</div>
+      <div class="rec-wrap"><table class="rec">
+        <thead><tr><th>#</th><th>Lot ID</th><th>Wafer No.</th><th>Good Die(EA)</th><th>Yield%</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+  } else {
+    excelRows=[
+      {lotId:'FT-PKG-001',pkgQty:'1200',goodPkg:'1188',yieldPct:'99.0'},
+      {lotId:'FT-PKG-002',pkgQty:'1080',goodPkg:'1063',yieldPct:'98.4'},
+    ];
+    const total=excelRows.reduce((a,r)=>a+(+r.goodPkg||0),0);
+    const rows=excelRows.map((r,i)=>`<tr>
+      <td>${i+1}</td><td class="mono">${r.lotId}</td>
+      <td>${(+r.pkgQty).toLocaleString()}</td><td>${(+r.goodPkg).toLocaleString()}</td><td>${r.yieldPct}%</td>
+    </tr>`).join('');
+    document.getElementById('xlPreview').innerHTML=`
+      <div class="parse-ok" style="margin-bottom:8px">✅ ${excelRows.length}건 로드 — Good PKG 합계: ${total.toLocaleString()} EA</div>
+      <div class="rec-wrap"><table class="rec">
+        <thead><tr><th>#</th><th>Lot ID</th><th>PKG QTY</th><th>Good PKG(EA)</th><th>Yield%</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+  }
+  document.getElementById('xlSaveBtn').style.display='inline-block';
+}
+
+function saveExcel(){
+  if(!excelRows.length){alert('업로드된 데이터가 없습니다.');return;}
+  const date=document.getElementById('m-date')?.value||'';
+  const vendor=document.getElementById('m-vendor')?.value||'';
+  const note=document.getElementById('m-note')?.value||'엑셀 업로드';
+  if(!date){alert('날짜를 입력해주세요.');return;}
+  RECORDS.push({id:nextId++,pid:selPid,step:modalCtx.step,dir:modalCtx.dir,date,vendor,factory:'',lots:excelRows,note});
+  closeModal();
+  const p=PROJECTS.find(x=>x.id===selPid);
+  renderTabs(p); renderPanel(p);
+}
+</script>
