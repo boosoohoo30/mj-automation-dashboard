@@ -123,7 +123,6 @@ td{padding:9px 12px;border-bottom:0.5px solid var(--color-border-tertiary);verti
     <option value="일부등록">일부등록</option>
     <option value="미등록">미등록</option>
   </select>
-  <span style="font-size:11px;color:var(--color-text-secondary);padding:4px 8px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);border:0.5px dashed var(--color-border-secondary)">과제 종료는 영업팀 관리 (TBD)</span>
   <span id="cnt" style="font-size:12px;color:var(--color-text-secondary);margin-left:4px"></span>
 </div>
 
@@ -281,7 +280,7 @@ function renderDetail(p){
       </div>
     </div>
     <div class="panel-footer">
-      <div><!-- 과제 종료는 영업팀 관리 (TBD) --></div>
+      <div></div>
       <div class="panel-footer-right">
         <button class="btn sm" onclick="toggleRow(${p.id})">닫기</button>
         <button class="btn sm save" onclick="saveProject(${p.id})">저장</button>
@@ -306,13 +305,12 @@ function renderMetrics(){
 
 // ── 메인 렌더 ─────────────────────────────────────────────────────────────
 function render(){
-  const q       = document.getElementById('search').value.toLowerCase();
-  const fc      = document.getElementById('f-cls').value;
-  const fr      = document.getElementById('f-reg').value;
-  const fStatus = document.getElementById('f-status').value;  // '' | 'active' | 'closed'
+  const q  = document.getElementById('search').value.toLowerCase();
+  const fc = document.getElementById('f-cls').value;
+  const fr = document.getElementById('f-reg').value;
 
   const filtered = projects.filter(p=>{
-    const mq = !q  || p.name.toLowerCase().includes(q) || p.alCode.toLowerCase().includes(q) || p.customer.toLowerCase().includes(q);
+    const mq = !q || p.name.toLowerCase().includes(q) || p.alCode.toLowerCase().includes(q) || p.customer.toLowerCase().includes(q);
     const mc = !fc || p.cls === fc;
     const mr = !fr || p.reg === fr;
     return mq && mc && mr;
@@ -320,25 +318,52 @@ function render(){
 
   document.getElementById('cnt').textContent = `${filtered.length}건`;
 
-  document.getElementById('tbody').innerHTML = filtered.map(p=>`
-    <tr class="main-row${openId===p.id?' open':''}" onclick="toggleRow(${p.id})">
-      <td><span class="chevron${openId===p.id?' open':''}">›</span></td>
-      <td style="font-weight:500">${p.customer}</td>
-      <td style="font-weight:500">${p.name}</td>
-      <td class="al-code">${p.alCode}</td>
-      <td><span class="badge b-fab">${p.stage}</span></td>
-      <td><span class="badge ${clsBadge[p.cls]||'b-pilot'}">${p.cls}</span></td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums">${p.qty.toLocaleString()} <span style="font-size:11px;color:var(--color-text-secondary)">${p.unit}</span></td>
-      <td style="font-size:12px;font-family:var(--font-mono);color:${p.tmCode?'var(--color-text-primary)':'var(--color-text-secondary)'}">${p.tmCode||'—'}</td>
-      <td style="font-size:12px;color:${p.netDie&&p.cls!=='MPW'?'var(--color-text-primary)':'var(--color-text-secondary)'}">${p.cls==='MPW'?'—':p.netDie||'—'}</td>
-      <td>${stepSummary(p.steps)}</td>
-      <td>${regBadge(p.reg)}</td>
-    </tr>
-    <tr class="detail-row">
-      <td colspan="11">${openId===p.id?renderDetail(p):''}</td>
-    </tr>
-  `).join('');
+  const COLS = 11;
+  const ORDER = ['MPW','Pilot Wafer','Production Wafer'];
+  const GRP_STYLE = {
+    'MPW':              {bc:'b-mpw', color:'#854F0B', bg:'#FEF8F0'},
+    'Pilot Wafer':      {bc:'b-pilot', color:'#3C3489', bg:'#F6F5FF'},
+    'Production Wafer': {bc:'b-prod', color:'#27500A', bg:'#F3F9ED'},
+  };
+  const rows = [];
 
+  ORDER.forEach(grp=>{
+    const gps = filtered.filter(p=>p.cls===grp);
+    if(!gps.length) return;
+    const totalQty = gps.reduce((a,p)=>a+p.qty, 0);
+    const unit = gps[0].unit;
+    const s = GRP_STYLE[grp]||{bc:'b-pilot',color:'#333',bg:'#f5f4f0'};
+    rows.push(`<tr>
+      <td colspan="${COLS}" style="padding:7px 14px;background:${s.bg};border-top:2px solid currentColor;border-bottom:0.5px solid var(--color-border-tertiary);color:${s.color}">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="badge ${s.bc}">${grp}</span>
+          <span style="font-size:11px;opacity:.7">${gps.length}건</span>
+          <span style="font-size:13px;font-weight:600;margin-left:auto">합계 ${totalQty.toLocaleString()} ${unit}</span>
+        </div>
+      </td>
+    </tr>`);
+    gps.forEach(p=>{
+      rows.push(`<tr class="main-row${openId===p.id?' open':''}" onclick="toggleRow(${p.id})">
+        <td><span class="chevron${openId===p.id?' open':''}">›</span></td>
+        <td style="font-weight:500">${p.customer}</td>
+        <td style="font-weight:500">${p.name}</td>
+        <td class="al-code">${p.alCode}</td>
+        <td><span class="badge b-fab">${p.stage}</span></td>
+        <td><span class="badge ${clsBadge[p.cls]||'b-pilot'}">${p.cls}</span></td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums">${p.qty.toLocaleString()} <span style="font-size:11px;color:var(--color-text-secondary)">${p.unit}</span></td>
+        <td style="font-size:12px;font-family:var(--font-mono);color:${p.tmCode?'var(--color-text-primary)':'var(--color-text-secondary)'}">${p.tmCode||'—'}</td>
+        <td style="font-size:12px;color:${p.netDie&&p.cls!=='MPW'?'var(--color-text-primary)':'var(--color-text-secondary)'}">${p.cls==='MPW'?'—':p.netDie||'—'}</td>
+        <td>${stepSummary(p.steps)}</td>
+        <td>${regBadge(p.reg)}</td>
+      </tr>
+      <tr class="detail-row">
+        <td colspan="${COLS}">${openId===p.id?renderDetail(p):''}</td>
+      </tr>`);
+    });
+  });
+
+  if(!rows.length) rows.push(`<tr><td colspan="${COLS}" style="text-align:center;padding:32px;color:var(--color-text-secondary)">검색 결과가 없습니다</td></tr>`);
+  document.getElementById('tbody').innerHTML = rows.join('');
   renderMetrics();
 }
 

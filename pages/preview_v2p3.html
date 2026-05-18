@@ -146,17 +146,10 @@ table.lot input:focus{outline:none;border-color:#185FA5}
     <div class="topbar-sub">과제별 Step 입출하 등록 및 이력 관리</div>
   </div>
   <div class="proj-bar">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <select class="proj-select" id="projSel" onchange="selectProject(+this.value)">
-        <option value="-1">— 과제/건 선택 —</option>
-      </select>
-      <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;color:var(--color-text-secondary);white-space:nowrap">
-        <input type="checkbox" id="showCompleted" onchange="refreshProjList()" style="cursor:pointer;width:13px;height:13px">
-        출고처리완료 건 포함
-      </label>
-    </div>
+    <select class="proj-select" id="projSel" onchange="selectProject(+this.value)">
+      <option value="-1">— 과제 선택 —</option>
+    </select>
     <div class="proj-meta" id="projMeta" style="display:none">
-      <div class="proj-meta-item" id="m-run-wrap" style="font-weight:500;color:var(--color-text-primary)"><span id="m-run"></span></div>
       <div class="proj-meta-item">고객사 <strong id="m-cust"></strong></div>
       <div class="proj-meta-item">AL Code <strong class="mono" id="m-al"></strong></div>
       <div class="proj-meta-item">Start Qty <strong id="m-qty"></strong></div>
@@ -171,8 +164,7 @@ table.lot input:focus{outline:none;border-color:#185FA5}
     <div class="step-panel" id="stepPanel"></div>
   </div>
   <div class="empty-state" id="emptyState">
-    과제/건을 선택하면 Step별 입출하를 등록하고 이력을 조회할 수 있습니다.<br>
-    <span style="font-size:12px;margin-top:6px;display:inline-block" id="completedHint"></span>
+    과제를 선택하면 Step별 입출하를 등록하고 이력을 조회할 수 있습니다.
   </div>
 </div>
 
@@ -188,15 +180,13 @@ table.lot input:focus{outline:none;border-color:#185FA5}
 </div>
 
 <script>
-// 각 항목 = 건(Lot/Run) 단위. 같은 과제명으로 여러 건 존재 가능.
-// shipStatus: '진행중' | '출고처리완료'  (출고처리 = 인수증 화면에서 처리, 여기서는 조회만)
+// 과제 하나 = 항목 하나. 각 step 안에서 여러 Lot ID 관리.
 const PROJECTS=[
-  {id:0, runLabel:'건 #2 (MPW-2)', customer:'A', name:'SI0136A',      alCode:'BX4K72A', cls:'MPW',             qty:40, unit:'EA',  tmCode:'TMWC09_C16', netDie:'',    steps:[{step:'FAB',vendor:'TSMC',factory:'FAB12'}],                                                    shipStatus:'진행중',      shipDate:null},
-  {id:7, runLabel:'건 #1 (MPW-1)', customer:'A', name:'SI0136A',      alCode:'BX4K72A', cls:'MPW',             qty:40, unit:'EA',  tmCode:'TMWC09_C16', netDie:'',    steps:[{step:'FAB',vendor:'TSMC',factory:'FAB12'}],                                                    shipStatus:'출고처리완료', shipDate:'2025-03-10'},
-  {id:1, runLabel:'건 #1',         customer:'B', name:'ANA38413_N1C', alCode:'TR9M21A', cls:'Pilot Wafer',     qty:2,  unit:'PCS', tmCode:'TMVZ07',     netDie:'850', steps:[{step:'FAB',vendor:'TSMC',factory:'FAB12'},{step:'CP',vendor:'GMTest',factory:''}],              shipStatus:'진행중',      shipDate:null},
-  {id:3, runLabel:'건 #1',         customer:'C', name:'Ratel_N1C',    alCode:'PJ2H67A', cls:'Production Wafer',qty:6,  unit:'PCS', tmCode:'TMMQ65',     netDie:'1200',steps:[{step:'FAB',vendor:'TSMC',factory:'FAB8'},{step:'ASSEMBLY',vendor:'Amkor',factory:'K5'},{step:'FT',vendor:'ITEK',factory:''}], shipStatus:'진행중', shipDate:null},
-  {id:4, runLabel:'건 #1',         customer:'A', name:'FALCON_N1B',   alCode:'QN8L44A', cls:'Production Wafer',qty:75, unit:'PCS', tmCode:'TMSV86',     netDie:'',    steps:[{step:'FAB',vendor:'TSMC',factory:'FAB8'}],                                                     shipStatus:'출고처리완료', shipDate:'2026-03-15'},
-  {id:6, runLabel:'건 #1',         customer:'C', name:'Tachy-BS4_N1A',alCode:'HL6T38A', cls:'Production Wafer',qty:25, unit:'PCS', tmCode:'TMUE69',     netDie:'620', steps:[{step:'FAB',vendor:'TSMC',factory:'FAB5'},{step:'FT',vendor:'ITEK',factory:''}],               shipStatus:'진행중',      shipDate:null},
+  {id:0,customer:'A',name:'SI0136A',      alCode:'BX4K72A',cls:'MPW',             qty:40, unit:'EA',  tmCode:'TMWC09_C16',netDie:'',    steps:[{step:'FAB',vendor:'TSMC',factory:'FAB12'}],                                                    shipped:false},
+  {id:1,customer:'B',name:'ANA38413_N1C', alCode:'TR9M21A',cls:'Pilot Wafer',     qty:2,  unit:'PCS', tmCode:'TMVZ07',    netDie:'850', steps:[{step:'FAB',vendor:'TSMC',factory:'FAB12'},{step:'CP',vendor:'GMTest',factory:''}],              shipped:false},
+  {id:3,customer:'C',name:'Ratel_N1C',    alCode:'PJ2H67A',cls:'Production Wafer',qty:6,  unit:'PCS', tmCode:'TMMQ65',    netDie:'1200',steps:[{step:'FAB',vendor:'TSMC',factory:'FAB8'},{step:'ASSEMBLY',vendor:'Amkor',factory:'K5'},{step:'FT',vendor:'ITEK',factory:''}], shipped:false},
+  {id:4,customer:'A',name:'FALCON_N1B',   alCode:'QN8L44A',cls:'Production Wafer',qty:75, unit:'PCS', tmCode:'TMSV86',    netDie:'',    steps:[{step:'FAB',vendor:'TSMC',factory:'FAB8'}],                                                     shipped:true},
+  {id:6,customer:'C',name:'Tachy-BS4_N1A',alCode:'HL6T38A',cls:'Production Wafer',qty:25, unit:'PCS', tmCode:'TMUE69',    netDie:'620', steps:[{step:'FAB',vendor:'TSMC',factory:'FAB5'},{step:'FT',vendor:'ITEK',factory:''}],               shipped:false},
 ];
 let RECORDS=[
   {id:1,pid:3,step:'FAB',dir:'IN',date:'2026-02-01',vendor:'TSMC',factory:'FAB8',lots:[{qty:'6'}],note:''},
@@ -230,45 +220,24 @@ const REC_COLS={
   DPS:{IN:[{h:'입고일',f:'date'},{h:'업체',f:'vendor'},{h:'수량(EA)',f:'qty0'},{h:'메모',f:'note'}],OUT:[{h:'출고일',f:'date'},{h:'출하(EA)',f:'shipQty0'},{h:'잔여(EA)',f:'remain0'},{h:'메모',f:'note'}]},
 };
 let selPid=-1,activeStep=null,modalCtx=null,modalLots=[];
-
-function refreshProjList(){
-  const showAll=document.getElementById('showCompleted')?.checked;
+(function init(){
   const sel=document.getElementById('projSel');
-  const prev=sel.value;
-  // keep header option only
-  while(sel.options.length>1) sel.remove(1);
-  PROJECTS
-    .filter(p=>showAll||p.shipStatus==='진행중')
-    .forEach(p=>{
-      const o=document.createElement('option');
-      o.value=p.id;
-      const done=p.shipStatus==='출고처리완료';
-      o.textContent=`${p.name}  [${p.runLabel}]  (${p.customer} · ${p.alCode})${done?'  — 출고처리완료':''}`;
-      if(done) o.style.color='#9b9a96';
-      sel.appendChild(o);
-    });
-  // restore selection if still in list
-  if([...sel.options].some(o=>o.value===prev)) sel.value=prev;
-  else { sel.value='-1'; selectProject(-1); }
-}
-(function init(){ refreshProjList(); })();
+  PROJECTS.forEach(p=>{
+    const o=document.createElement('option');
+    o.value=p.id;
+    o.textContent=`${p.name}  (${p.customer} · ${p.alCode})${p.shipped?' — 출고처리완료':''}`;
+    if(p.shipped) o.style.color='#9b9a96';
+    sel.appendChild(o);
+  });
+})();
 function selectProject(id){
   selPid=id;
-  if(id<0){
-    document.getElementById('projMeta').style.display='none';
-    document.getElementById('stepBlock').style.display='none';
-    document.getElementById('emptyState').style.display='block';
-    const cnt=PROJECTS.filter(p=>p.shipStatus==='출고처리완료').length;
-    const el=document.getElementById('completedHint');
-    if(el&&cnt>0) el.innerHTML=`출고처리완료 건 ${cnt}건 있음 &nbsp;·&nbsp; <label style="cursor:pointer;color:#185FA5"><input type="checkbox" id="showCompleted2" onchange="document.getElementById('showCompleted').checked=this.checked;refreshProjList()"> 포함해서 보기</label>`;
-    return;
-  }
+  if(id<0){document.getElementById('projMeta').style.display='none';document.getElementById('stepBlock').style.display='none';document.getElementById('emptyState').style.display='block';return;}
   const p=PROJECTS.find(x=>x.id===id);if(!p)return;
   document.getElementById('emptyState').style.display='none';document.getElementById('projMeta').style.display='flex';document.getElementById('stepBlock').style.display='block';
-  document.getElementById('m-run').textContent=p.runLabel;
   document.getElementById('m-cust').textContent=p.customer;document.getElementById('m-al').textContent=p.alCode;document.getElementById('m-qty').textContent=`${p.qty} ${p.unit}`;document.getElementById('m-cls').textContent=p.cls;document.getElementById('m-tm').textContent=p.tmCode||'—';
-  document.getElementById('m-ship').innerHTML=p.shipStatus==='출고처리완료'
-    ?`<span class="badge b-done">출고처리완료</span><span style="font-size:11px;color:var(--color-text-secondary);margin-left:4px">${p.shipDate||''}</span>`
+  document.getElementById('m-ship').innerHTML=p.shipped
+    ?'<span class="badge b-done">출고처리완료</span>'
     :'<span class="badge b-pend">진행중</span>';
   document.getElementById('m-flow').innerHTML=p.steps.map((s,i)=>`${i>0?'<span class="flow-arrow">›</span>':''}<span class="flow-step">${s.step}</span>`).join('');
   activeStep=p.steps[0].step;renderTabs(p);renderPanel(p);
@@ -279,28 +248,19 @@ function renderPanel(p){
   const step=activeStep,si=p.steps.find(s=>s.step===step);
   const inR=RECORDS.filter(r=>r.pid===p.id&&r.step===step&&r.dir==='IN');
   const outR=RECORDS.filter(r=>r.pid===p.id&&r.step===step&&r.dir==='OUT');
-  const isReadonly=p.shipStatus==='출고처리완료';
   const om=OUT_METHOD[step]||'manual';
   const oc=om==='parse'?'parse':om==='excel'?'excel':'';
   const ot=om==='parse'?'메모장 파싱':om==='excel'?'엑셀 업로드':'OUT 등록';
-  const readonlyBanner=isReadonly?`
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f0f9f4;border:0.5px solid #9CD6B5;border-radius:6px;margin-bottom:14px;font-size:12px;color:#27500A">
-      <span class="badge b-done" style="flex-shrink:0">출고처리완료</span>
-      출고일: <strong>${p.shipDate}</strong> · 이 건은 출고처리가 완료되었습니다. 조회 전용입니다.
-    </div>`:'';
-  const inBtn=isReadonly?'':'<button class="io-add-btn" onclick="openModal(\''+step+'\',\'IN\',\'manual\')">+ IN 등록</button>';
-  const outBtn=isReadonly?'':'<button class="io-add-btn '+oc+'" onclick="openModal(\''+step+'\',\'OUT\',\''+om+'\')">'+ot+'</button>';
   document.getElementById('stepPanel').innerHTML=`
-    ${readonlyBanner}
     <div class="step-meta">업체: <strong>${si.vendor||'—'}</strong>&nbsp;&nbsp;공장: <strong>${si.factory||'—'}</strong></div>
     <div class="io-section">
-      <div class="io-header"><span class="io-badge in">IN — 입고</span><span class="io-total">${calcTotal(inR,step,'IN')}</span>${inBtn}</div>
-      <div class="rec-wrap">${buildRecTable(inR,step,'IN',isReadonly)}</div>
+      <div class="io-header"><span class="io-badge in">IN — 입고</span><span class="io-total">${calcTotal(inR,step,'IN')}</span><button class="io-add-btn" onclick="openModal('${step}','IN','manual')">+ IN 등록</button></div>
+      <div class="rec-wrap">${buildRecTable(inR,step,'IN')}</div>
     </div>
     <hr class="io-divider">
     <div class="io-section">
-      <div class="io-header"><span class="io-badge out">OUT — 출고</span><span class="io-total">${calcTotal(outR,step,'OUT')}</span>${outBtn}</div>
-      <div class="rec-wrap">${buildRecTable(outR,step,'OUT',isReadonly)}</div>
+      <div class="io-header"><span class="io-badge out">OUT — 출고</span><span class="io-total">${calcTotal(outR,step,'OUT')}</span><button class="io-add-btn ${oc}" onclick="openModal('${step}','OUT','${om}')">${ot}</button></div>
+      <div class="rec-wrap">${buildRecTable(outR,step,'OUT')}</div>
     </div>`;
 }
 function calcTotal(recs,step,dir){
@@ -315,11 +275,11 @@ function calcTotal(recs,step,dir){
   if(step==='BUMP'&&dir==='OUT')return`합계 ${sum(recs,'qty')} PCS / Good Die ${sum(recs,'goodDie').toLocaleString()} EA`;
   return`${recs.length}건`;
 }
-function buildRecTable(recs,step,dir,isReadonly=false){
+function buildRecTable(recs,step,dir){
   const cols=(REC_COLS[step]||{})[dir]||[];if(!cols.length)return'';
-  const thead=cols.map(c=>`<th>${c.h}</th>`).join('')+(isReadonly?'':'<th></th>');
-  if(!recs.length)return`<table class="rec"><thead><tr>${thead}</tr></thead><tbody><tr class="rec-empty"><td colspan="${cols.length+(isReadonly?0:1)}">등록된 기록이 없습니다</td></tr></tbody></table>`;
-  const rows=recs.map(r=>{const cells=cols.map(c=>`<td${c.mono?' class="mono"':''}>${getCellVal(r,c.f)}</td>`).join('');return`<tr>${cells}${isReadonly?'':`<td><button class="del-btn" onclick="delRecord(${r.id})">삭제</button></td>`}</tr>`;}).join('');
+  const thead=cols.map(c=>`<th>${c.h}</th>`).join('')+'<th></th>';
+  if(!recs.length)return`<table class="rec"><thead><tr>${thead}</tr></thead><tbody><tr class="rec-empty"><td colspan="${cols.length+1}">등록된 기록이 없습니다</td></tr></tbody></table>`;
+  const rows=recs.map(r=>{const cells=cols.map(c=>`<td${c.mono?' class="mono"':''}>${getCellVal(r,c.f)}</td>`).join('');return`<tr>${cells}<td><button class="del-btn" onclick="delRecord(${r.id})">삭제</button></td></tr>`;}).join('');
   return`<table class="rec"><thead><tr>${thead}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 function getCellVal(r,f){
