@@ -135,6 +135,16 @@ textarea.reason-input:focus{outline:none;border-color:#185FA5}
       </select>
     </div>
   </div>
+  <div class="search-grid" style="grid-template-columns:repeat(3,1fr) 2fr;margin-bottom:0">
+    <div><div class="search-label">등록상태 (FAB Start Qty)</div>
+      <select class="si" id="f-status" onchange="render()">
+        <option value="">전체 등록상태</option>
+        <option value="미지정">미지정</option>
+        <option value="일부등록">일부등록</option>
+        <option value="저장완료">저장완료</option>
+      </select>
+    </div>
+  </div>
   <div class="search-actions">
     <button class="btn sm reset" onclick="resetSearch()">초기화</button>
     <button class="btn sm primary" onclick="render()">검색</button>
@@ -235,10 +245,9 @@ const DRAFTS = [
   },
 ];
 
-// 저장된 Start Qty: itemId → {qty, savedAt}
+// 저장된 Start Qty: itemId → {qty, savedAt}  (FAB 단계만)
 const SAVED = {
-  9:  {qty:1600, savedAt:'2026-04-10'},
-  10: {qty:1600, savedAt:'2026-04-10'},
+  5: {qty:6, savedAt:'2026-04-10'},  // Albatross FAB Pilot Wafer
 };
 // 변경이력: itemId → [{prev, next, reason, date}]
 const HISTORY = {};
@@ -255,9 +264,9 @@ const SHOW_COLS = {vendor:true, rfqQty:false, price:false};
 // 변경사유 모달 컨텍스트
 let reasonCtx = null;
 
-// ── 초기 입력값 세팅 ──────────────────────────────────────────────────────
+// ── 초기 입력값 세팅 (FAB 단계 물대항목만) ───────────────────────────────
 DRAFTS.forEach(d=>d.rfqs.forEach(r=>r.items.forEach(it=>{
-  if(!it.isMulDae) return;
+  if(!it.isMulDae || it.stage !== 'FAB') return;
   if(SAVED[it.id] !== undefined){
     INPUTS[it.id] = String(SAVED[it.id].qty);
   } else if(!it.isMpw && it.rfqQty !== null){
@@ -272,13 +281,16 @@ function stageBadge(s){
   const map={'FAB':'b-fab','OSAT_PKG':'b-osat','IP':'b-ip','내부인건비':'b-dps'};
   return`<span class="badge ${map[s]||'b-dps'}">${s}</span>`;
 }
-function savedStatus(draftId){
-  const allItems=[];
+// FAB 단계 물대항목 기준으로만 등록상태 계산
+function fabMulDaeItems(draftId){
   const d=DRAFTS.find(x=>x.id===draftId);
-  d.rfqs.forEach(r=>r.items.filter(i=>i.isMulDae).forEach(i=>allItems.push(i)));
-  if(!allItems.length) return null;
-  const saved=allItems.filter(i=>SAVED[i.id]!==undefined||INPUTS[i.id]);
-  if(saved.length===allItems.length) return'저장완료';
+  return d.rfqs.flatMap(r=>r.items.filter(i=>i.isMulDae && i.stage==='FAB'));
+}
+function savedStatus(draftId){
+  const items=fabMulDaeItems(draftId);
+  if(!items.length) return null;
+  const saved=items.filter(i=>SAVED[i.id]!==undefined);
+  if(saved.length===items.length) return'저장완료';
   if(saved.length>0) return'일부등록';
   return'미지정';
 }
@@ -287,27 +299,29 @@ function savedStatus(draftId){
 function filtered(){
   const fc=v=>document.getElementById(v)?.value.toLowerCase()||'';
   const cust=fc('f-cust'),proj=fc('f-proj'),draft=fc('f-draft'),pm=fc('f-pm'),am=fc('f-am');
+  const status=document.getElementById('f-status')?.value||'';
   return DRAFTS.filter(d=>{
     if(cust&&!d.customer.toLowerCase().includes(cust))return false;
     if(proj&&!d.project.toLowerCase().includes(proj))return false;
     if(draft&&!d.draftNo.toLowerCase().includes(draft))return false;
-    if(pm&&(d.pm||'').toLowerCase()!==pm&&!(d.pm||'').toLowerCase().includes(pm))return false;
+    if(pm&&!(d.pm||'').toLowerCase().includes(pm))return false;
     if(am&&d.team!==am)return false;
+    if(status&&savedStatus(d.id)!==status)return false;
     return true;
   });
 }
 
-// ── 메트릭 ────────────────────────────────────────────────────────────────
+// ── 메트릭 (FAB 물대항목 기준) ───────────────────────────────────────────
 function renderMetrics(list){
   const totalProj=new Set(list.map(d=>d.project)).size;
-  const mulDaeItems=list.flatMap(d=>d.rfqs.flatMap(r=>r.items.filter(i=>i.isMulDae)));
-  const savedCount=mulDaeItems.filter(i=>SAVED[i.id]!==undefined).length;
-  const noneCount=mulDaeItems.filter(i=>SAVED[i.id]===undefined&&!(INPUTS[i.id])).length;
+  const fabItems=list.flatMap(d=>d.rfqs.flatMap(r=>r.items.filter(i=>i.isMulDae&&i.stage==='FAB')));
+  const savedCount=fabItems.filter(i=>SAVED[i.id]!==undefined).length;
+  const noneCount=fabItems.filter(i=>SAVED[i.id]===undefined).length;
   document.getElementById('metrics').innerHTML=`
     <div class="metric"><div class="metric-label">대상 과제</div><div class="metric-val">${totalProj}</div><div class="metric-sub">건</div></div>
-    <div class="metric"><div class="metric-label">물대 항목</div><div class="metric-val">${mulDaeItems.length}</div><div class="metric-sub">행</div></div>
+    <div class="metric"><div class="metric-label">FAB 물대 항목</div><div class="metric-val">${fabItems.length}</div><div class="metric-sub">행</div></div>
     <div class="metric"><div class="metric-label">Start Qty 저장완료</div><div class="metric-val" style="color:#27500A">${savedCount}</div><div class="metric-sub">행</div></div>
-    <div class="metric"><div class="metric-label">미지정</div><div class="metric-val" style="color:#5F5E5A">${mulDaeItems.length-savedCount}</div><div class="metric-sub">행</div></div>
+    <div class="metric"><div class="metric-label">미지정</div><div class="metric-val" style="color:#5F5E5A">${noneCount}</div><div class="metric-sub">행</div></div>
   `;
 }
 
@@ -367,14 +381,18 @@ function render(){
 
       // 물대 행
       mulDaeRows.forEach(it=>{
-        const savedVal=SAVED[it.id];
-        const curInput=INPUTS[it.id]||'';
-        const isModified=savedVal!==undefined && String(savedVal.qty)!==curInput && curInput!=='';
-        const hasHistory=HISTORY[it.id]&&HISTORY[it.id].length>0;
-        const inputCls='qty-input'+(isModified?' saved-modified':curInput&&curInput!==String(savedVal?.qty||'')?' modified':'');
+        const isFab = it.stage === 'FAB';
+        const savedVal = isFab ? SAVED[it.id] : undefined;
+        const curInput = isFab ? (INPUTS[it.id]||'') : '';
+        const isModified = savedVal!==undefined && String(savedVal.qty)!==curInput && curInput!=='';
+        const hasHistory = isFab && HISTORY[it.id]&&HISTORY[it.id].length>0;
+        const inputCls='qty-input'+(isModified?' saved-modified':curInput&&!savedVal?' modified':'');
 
         let statusBadge;
-        if(savedVal){
+        if(!isFab){
+          // FAB 아닌 물대항목(OSAT 등) — Start Qty 해당 없음, 입출하관리에서 수기 등록
+          statusBadge=`<span style="font-size:11px;color:var(--color-text-secondary)">입출하관리 등록</span>`;
+        } else if(savedVal){
           statusBadge=`<span class="badge b-saved">저장완료</span>`;
         } else if(curInput){
           statusBadge=`<span class="badge b-partial" style="font-size:10px">미저장</span>`;
@@ -385,6 +403,18 @@ function render(){
         }
 
         const historyDot=hasHistory?`<div class="history-dot" title="변경이력"><div class="history-tip">${HISTORY[it.id].map(h=>`${h.date}: ${h.prev}→${h.next} (${h.reason})`).join('<br>')}</div></div>`:'';
+
+        const qtyCell = isFab
+          ? `<div class="qty-cell" style="justify-content:flex-end">
+              ${historyDot}
+              <input class="${inputCls}" type="number" min="0"
+                value="${curInput}"
+                placeholder="${it.isMpw?'수기입력':it.rfqQty??''}"
+                data-id="${it.id}"
+                oninput="onQtyInput(${it.id},this.value)"
+                onchange="onQtyChange(${it.id},this.value)">
+            </div>`
+          : `<span style="color:var(--color-text-secondary);font-size:12px">—</span>`;
 
         rows.push(`<tr class="row-muldae">
           <td></td>
@@ -397,18 +427,7 @@ function render(){
           <td style="text-align:center">—</td>
           ${SHOW_COLS.rfqQty?`<td style="text-align:right;font-size:12px">${it.rfqQty??'—'}</td>`:''}
           ${SHOW_COLS.price?'<td style="text-align:right">—</td>':''}
-          <td style="text-align:right">
-            <div class="qty-cell" style="justify-content:flex-end">
-              ${historyDot}
-              <input class="${inputCls}" type="number" min="0"
-                value="${curInput}"
-                placeholder="${it.isMpw?'수기입력':it.rfqQty??''}"
-                data-id="${it.id}"
-                data-rfq="${r.id}"
-                oninput="onQtyInput(${it.id},this.value)"
-                onchange="onQtyChange(${it.id},this.value)">
-            </div>
-          </td>
+          <td style="text-align:right">${qtyCell}</td>
           <td>${statusBadge}</td>
         </tr>`);
       });
@@ -510,7 +529,7 @@ function confirmReason(){
 // ── 저장 / 취소 ───────────────────────────────────────────────────────────
 function saveAll(){
   let count=0;
-  DRAFTS.forEach(d=>d.rfqs.forEach(r=>r.items.filter(i=>i.isMulDae).forEach(it=>{
+  DRAFTS.forEach(d=>d.rfqs.forEach(r=>r.items.filter(i=>i.isMulDae&&i.stage==='FAB').forEach(it=>{
     const v=INPUTS[it.id];
     if(v && v!==''){
       const prev=SAVED[it.id];
@@ -524,7 +543,7 @@ function saveAll(){
   render();
 }
 function cancelAll(){
-  DRAFTS.forEach(d=>d.rfqs.forEach(r=>r.items.filter(i=>i.isMulDae).forEach(it=>{
+  DRAFTS.forEach(d=>d.rfqs.forEach(r=>r.items.filter(i=>i.isMulDae&&i.stage==='FAB').forEach(it=>{
     INPUTS[it.id]=SAVED[it.id]?String(SAVED[it.id].qty):(it.isMpw?'':String(it.rfqQty??''));
   })));
   render();
@@ -543,6 +562,7 @@ function toggleCol(col){
 function resetSearch(){
   ['f-cust','f-proj','f-draft','f-pm'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-am').value='';
+  document.getElementById('f-status').value='';
   render();
 }
 
