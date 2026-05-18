@@ -123,7 +123,8 @@ textarea.reason-input:focus{outline:none;border-color:#185FA5}
 
 <!-- 검색 -->
 <div class="search-box">
-  <div class="search-grid">
+  <!-- 1행: 기본 필터 -->
+  <div class="search-grid" style="margin-bottom:10px">
     <div><div class="search-label">Customer</div><input class="si" id="f-cust" placeholder="고객사명" oninput="render()"></div>
     <div><div class="search-label">Project</div><input class="si" id="f-proj" placeholder="프로젝트명" oninput="render()"></div>
     <div><div class="search-label">매출기안#</div><input class="si" id="f-draft" placeholder="AS-영업X팀-XXXXXX" oninput="render()"></div>
@@ -135,20 +136,37 @@ textarea.reason-input:focus{outline:none;border-color:#185FA5}
       </select>
     </div>
   </div>
-  <div class="search-grid" style="grid-template-columns:repeat(3,1fr) 2fr;margin-bottom:0">
-    <div><div class="search-label">등록상태 (FAB Start Qty)</div>
-      <select class="si" id="f-status" onchange="render()">
+  <!-- 2행: 기간·상태 필터 -->
+  <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
+    <div>
+      <div class="search-label">연도</div>
+      <select class="si" id="f-year" onchange="render()" style="width:110px">
+        <option value="2026">2026년</option>
+        <option value="2025">2025년</option>
+        <option value="2024">2024년</option>
+        <option value="">전체 연도</option>
+      </select>
+    </div>
+    <div>
+      <div class="search-label">등록상태 (FAB)</div>
+      <select class="si" id="f-status" onchange="render()" style="width:140px">
         <option value="">전체 등록상태</option>
         <option value="미지정">미지정</option>
         <option value="일부등록">일부등록</option>
         <option value="저장완료">저장완료</option>
       </select>
     </div>
+    <div style="display:flex;align-items:center;gap:6px;padding-bottom:2px">
+      <input type="checkbox" id="f-include-closed" onchange="render()" style="width:14px;height:14px;cursor:pointer">
+      <label for="f-include-closed" style="font-size:12px;color:var(--color-text-secondary);cursor:pointer;user-select:none">종료 과제 포함</label>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:flex-end">
+      <button class="btn sm reset" onclick="resetSearch()">초기화</button>
+      <button class="btn sm primary" onclick="render()">검색</button>
+    </div>
   </div>
-  <div class="search-actions">
-    <button class="btn sm reset" onclick="resetSearch()">초기화</button>
-    <button class="btn sm primary" onclick="render()">검색</button>
-  </div>
+  <!-- 현재 필터 요약 -->
+  <div id="filter-summary" style="font-size:11px;color:var(--color-text-secondary)"></div>
 </div>
 
 <!-- 요약카드 -->
@@ -201,7 +219,7 @@ textarea.reason-input:focus{outline:none;border-color:#185FA5}
 // ── 데이터 ────────────────────────────────────────────────────────────────
 const DRAFTS = [
   { id:1, draftNo:'AS-영업1팀-251014-003', team:'DJ', customer:'Uniqconn', project:'UC60Plus C4',
-    alCode:'BX4K72A', pm:'JH', salesStatus:'기안상신',
+    alCode:'BX4K72A', pm:'JH', salesStatus:'기안상신', year:2025, closed:false,
     rfqs:[
       { id:1, rfqNo:'RFQ-260423-001', title:'65nm MSRF GP+ 1.0/2.5V',
         items:[
@@ -214,7 +232,7 @@ const DRAFTS = [
     ]
   },
   { id:2, draftNo:'AS-영업1팀-260101-001', team:'SY', customer:'Fadu', project:'Albatross_N1B',
-    alCode:'TR9M21A', pm:null, salesStatus:'기안상신',
+    alCode:'TR9M21A', pm:null, salesStatus:'기안상신', year:2026, closed:false,
     rfqs:[
       { id:2, rfqNo:'RFQ-260301-001', title:'180nm LOGIC',
         items:[
@@ -231,7 +249,7 @@ const DRAFTS = [
     ]
   },
   { id:3, draftNo:'AS-영업1팀(Sales 1 Team)-260407-003', team:'DJ', customer:'Uniqconn', project:'UC60Plus C4',
-    alCode:'BX4K72A', pm:'JH', salesStatus:'계약완료',
+    alCode:'BX4K72A', pm:'JH', salesStatus:'계약완료', year:2026, closed:false,
     rfqs:[
       { id:4, rfqNo:'RFQ-260202-001', title:'65nm MSRF GP+ 1.0/2.5V',
         items:[
@@ -300,7 +318,11 @@ function filtered(){
   const fc=v=>document.getElementById(v)?.value.toLowerCase()||'';
   const cust=fc('f-cust'),proj=fc('f-proj'),draft=fc('f-draft'),pm=fc('f-pm'),am=fc('f-am');
   const status=document.getElementById('f-status')?.value||'';
+  const year=document.getElementById('f-year')?.value||'';
+  const includeClosed=document.getElementById('f-include-closed')?.checked||false;
   return DRAFTS.filter(d=>{
+    if(year && d.year !== +year) return false;
+    if(!includeClosed && d.closed) return false;
     if(cust&&!d.customer.toLowerCase().includes(cust))return false;
     if(proj&&!d.project.toLowerCase().includes(proj))return false;
     if(draft&&!d.draftNo.toLowerCase().includes(draft))return false;
@@ -325,10 +347,22 @@ function renderMetrics(list){
   `;
 }
 
+// ── 필터 요약 ──────────────────────────────────────────────────────────────
+function renderFilterSummary(list){
+  const year=document.getElementById('f-year')?.value||'';
+  const includeClosed=document.getElementById('f-include-closed')?.checked||false;
+  const parts=[];
+  parts.push(year ? `${year}년 기준` : '전체 연도');
+  parts.push(includeClosed ? '종료 과제 포함' : '종료 과제 제외');
+  parts.push(`${list.length}건 표시`);
+  document.getElementById('filter-summary').textContent=parts.join(' · ');
+}
+
 // ── 메인 렌더 ─────────────────────────────────────────────────────────────
 function render(){
   const list=filtered();
   renderMetrics(list);
+  renderFilterSummary(list);
 
   // 헤더
   document.getElementById('thead').innerHTML=`<tr>
@@ -563,6 +597,8 @@ function resetSearch(){
   ['f-cust','f-proj','f-draft','f-pm'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-am').value='';
   document.getElementById('f-status').value='';
+  document.getElementById('f-year').value='2026';
+  document.getElementById('f-include-closed').checked=false;
   render();
 }
 
