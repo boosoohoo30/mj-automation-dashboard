@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>생산관리 - 생산과제정보등록</title>
+<style>
+:root{
+  --color-text-primary:#1a1917;--color-text-secondary:#6b6a66;
+  --color-background-primary:#fff;--color-background-secondary:#f5f4f0;
+  --color-border-primary:#b0afa9;--color-border-secondary:#d0cfc9;--color-border-tertiary:#e5e4df;
+  --font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --font-mono:'SF Mono','Fira Code',monospace;
+  --border-radius-sm:4px;--border-radius-md:6px;--border-radius-lg:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-size:14px;color:var(--color-text-primary);font-family:var(--font-sans);background:#f5f4f0}
+.shell{max-width:1200px;margin:0 auto;padding:24px 32px;background:#fff;min-height:100vh}
+.wrap{padding:0}
+.topbar{margin-bottom:16px}
+.topbar-title{font-size:18px;font-weight:600}
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+input[type=text],select{padding:5px 10px;font-size:13px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary)}
+input[type=text]:focus,select:focus{outline:none;border-color:#185FA5}
+.btn{padding:6px 14px;font-size:13px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);cursor:pointer;background:var(--color-background-primary);color:var(--color-text-primary);transition:background .12s}
+.btn:hover{background:var(--color-background-secondary)}
+.btn.sm{padding:4px 10px;font-size:12px}
+.btn.save{background:#3B6D11;color:#fff;border-color:#3B6D11}
+.btn.save:hover{background:#27500A}
+.btn.warn{background:#fff;color:#D97706;border-color:#D97706}
+.btn.warn:hover{background:#FFFBEB}
+.btn.danger{background:#A32D2D;color:#fff;border-color:#A32D2D}
+.btn.danger:hover{background:#7A1F1F}
+.btn.reopen{background:#185FA5;color:#fff;border-color:#185FA5}
+.btn.reopen:hover{background:#0E4A85}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:18px}
+.metric{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:11px 14px}
+.metric-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:3px}
+.metric-val{font-size:21px;font-weight:500}
+.tbl-outer{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden}
+table.main{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:7px 12px;text-align:left;font-weight:500;font-size:11px;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);white-space:nowrap;text-transform:uppercase;letter-spacing:.03em}
+td{padding:9px 12px;border-bottom:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap}
+.main-row{cursor:pointer}
+.main-row:hover td{background:var(--color-background-secondary)}
+.main-row.open td{background:var(--color-background-secondary)}
+/* 종료 과제 행 */
+.main-row.closed-row td{opacity:.45}
+.main-row.closed-row:hover td{opacity:.65;background:var(--color-background-secondary)}
+.main-row.closed-row.open td{opacity:.65;background:var(--color-background-secondary)}
+.detail-row td{padding:0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.detail-panel{background:var(--color-background-primary);border-top:1.5px solid #185FA5;padding:16px 20px;display:none}
+.detail-panel.open{display:block}
+/* 종료 과제 detail panel */
+.detail-panel.closed-panel{border-top-color:#b0afa9}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.b-mpw{background:#FAEEDA;color:#633806}
+.b-pilot{background:#EEEDFE;color:#3C3489}
+.b-prod{background:#EAF3DE;color:#27500A}
+.b-fab{background:#E6F1FB;color:#0C447C}
+.b-saved{background:#EAF3DE;color:#27500A}
+.b-partial{background:#FAEEDA;color:#633806}
+.b-none{background:#F1EFE8;color:#5F5E5A}
+.b-closed{background:#F1EFE8;color:#5F5E5A}
+.al-code{font-family:var(--font-mono);font-size:11px;color:var(--color-text-secondary)}
+.chevron{font-size:12px;color:var(--color-text-secondary);transition:transform .2s;display:inline-block}
+.chevron.open{transform:rotate(90deg)}
+.panel-inner{display:flex;gap:24px;flex-wrap:wrap}
+.panel-left{display:flex;flex-direction:column;gap:14px;min-width:180px}
+.panel-label{font-size:11px;color:var(--color-text-secondary);font-weight:500;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+.fab-fields{display:flex;gap:10px}
+.fab-input-wrap{display:flex;flex-direction:column;gap:4px}
+.panel-right{flex:1;min-width:300px}
+.step-scroll{overflow-x:auto;padding-bottom:4px}
+.step-table{border-collapse:collapse;font-size:12px}
+.step-table th{padding:5px 10px;font-weight:500;font-size:11px;color:var(--color-text-secondary);background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+.step-table td{padding:5px 6px;border:0.5px solid var(--color-border-tertiary);vertical-align:middle}
+.step-table select,.step-table input[type=text]{width:100%;padding:4px 7px;font-size:12px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary)}
+.step-table select:focus,.step-table input:focus{outline:none;border-color:#185FA5}
+.seq-cell{text-align:center;font-weight:500;font-size:12px;color:var(--color-text-secondary);background:var(--color-background-secondary);width:40px;padding:5px 8px;white-space:nowrap}
+.del-btn{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);cursor:pointer;background:var(--color-background-primary);color:var(--color-text-secondary);font-size:14px;font-weight:300}
+.del-btn:hover{background:#FCEBEB;color:#A32D2D;border-color:#F09595}
+.add-step-btn{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border:0.5px solid #185FA5;border-radius:var(--border-radius-md);cursor:pointer;background:#E6F1FB;color:#185FA5;font-size:18px;line-height:1}
+.add-step-btn:hover{background:#B5D4F4}
+.panel-footer{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:14px;padding-top:12px;border-top:0.5px solid var(--color-border-tertiary)}
+.panel-footer-right{display:flex;gap:8px}
+.future-tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--color-text-secondary);padding:3px 8px;border:0.5px dashed var(--color-border-secondary);border-radius:var(--border-radius-md)}
+.req-mark{color:#A32D2D;font-size:10px;margin-left:2px}
+/* 종료 배너 */
+.closed-banner{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f5f4f0;border-radius:var(--border-radius-md);margin-bottom:12px;font-size:12px;color:var(--color-text-secondary)}
+/* 모달 */
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:200;display:none;align-items:center;justify-content:center}
+.backdrop.open{display:flex}
+.modal{background:var(--color-background-primary);border-radius:var(--border-radius-lg);border:.5px solid var(--color-border-tertiary);width:380px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.14)}
+.modal-header{padding:14px 20px;border-bottom:.5px solid var(--color-border-tertiary);font-size:14px;font-weight:500}
+.modal-body{padding:18px 20px;font-size:13px;line-height:1.65;color:var(--color-text-secondary)}
+.modal-body strong{color:var(--color-text-primary)}
+.modal-footer{padding:12px 20px;border-top:.5px solid var(--color-border-tertiary);display:flex;justify-content:flex-end;gap:8px}
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="wrap">
+
+<div class="topbar">
+  <div class="topbar-title">생산과제정보 등록</div>
+  <div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">SCM Flow · TM Code · Net Die 등록 — 생산계획목록에서 Start Qty 저장 완료된 과제만 표시</div>
+</div>
+
+<div class="metrics" id="metrics"></div>
+
+<div class="toolbar">
+  <input type="text" id="search" placeholder="과제명 / AL Code / 고객사 검색" style="width:220px" oninput="render()">
+  <select id="f-cls" onchange="render()">
+    <option value="">전체 분류</option>
+    <option value="MPW">MPW</option>
+    <option value="Pilot Wafer">Pilot Wafer</option>
+    <option value="Production Wafer">Production Wafer</option>
+  </select>
+  <select id="f-reg" onchange="render()">
+    <option value="">전체 등록상태</option>
+    <option value="저장완료">저장완료</option>
+    <option value="일부등록">일부등록</option>
+    <option value="미등록">미등록</option>
+  </select>
+  <select id="f-status" onchange="render()" style="width:130px">
+    <option value="active">활성 과제</option>
+    <option value="">전체 (종료 포함)</option>
+    <option value="closed">종료 과제만</option>
+  </select>
+  <span id="cnt" style="font-size:12px;color:var(--color-text-secondary);margin-left:4px"></span>
+</div>
+
+<div class="tbl-outer">
+  <table class="main">
+    <thead>
+      <tr>
+        <th style="width:28px"></th>
+        <th>고객사</th>
+        <th>과제명</th>
+        <th>AL Code</th>
+        <th>단계</th>
+        <th>분류</th>
+        <th style="text-align:right">시작수량</th>
+        <th>TM Code</th>
+        <th>Net Die</th>
+        <th>SCM Flow</th>
+        <th>등록상태</th>
+        <th>과제상태</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+</div>
+</div>
+
+<!-- 종료 확인 모달 -->
+<div class="backdrop" id="close-backdrop">
+  <div class="modal">
+    <div class="modal-header">과제 종료 처리</div>
+    <div class="modal-body" id="close-body"></div>
+    <div class="modal-footer">
+      <button class="btn sm" onclick="cancelClose()">취소</button>
+      <button class="btn sm danger" onclick="confirmClose()">종료 처리</button>
+    </div>
+  </div>
+</div>
+
+<!-- 재개 확인 모달 -->
+<div class="backdrop" id="reopen-backdrop">
+  <div class="modal">
+    <div class="modal-header">과제 재개</div>
+    <div class="modal-body" id="reopen-body"></div>
+    <div class="modal-footer">
+      <button class="btn sm" onclick="cancelReopen()">취소</button>
+      <button class="btn sm reopen" onclick="confirmReopen()">재개</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 상수 ──────────────────────────────────────────────────────────────────
+const STEPS   = ['FAB','BUMP','ASSEMBLY','CP','FT','DPS'];
+const VENDORS = ['TSMC','Amkor','ITEK','GMTest','ATK4'];
+
+// ── 과제 데이터 ───────────────────────────────────────────────────────────
+// 생산계획목록에서 FAB Start Qty가 저장 완료된 과제만 여기에 자동 이관됨.
+// customer / name / alCode / stage / cls / qty / unit 은 읽기전용 (생산계획에서 확정된 값).
+// TM Code / netDie / steps(SCM Flow) 는 이 화면에서 입력.
+const projects = [
+  { id:0, customer:'A', name:'SI0136A',      alCode:'BX4K72A', stage:'FAB', cls:'MPW',              qty:40,  unit:'EA',  tmCode:'TMWC09_C16', netDie:'',   steps:[{step:'FAB',vendor:'TSMC',factory:'FAB12'}],                                                   reg:'저장완료', closed:false, closedAt:null },
+  { id:1, customer:'B', name:'ANA38413_N1C', alCode:'TR9M21A', stage:'FAB', cls:'Pilot Wafer',       qty:2,   unit:'PCS', tmCode:'TMVZ07',     netDie:'850',steps:[{step:'FAB',vendor:'TSMC',factory:'FAB12'},{step:'CP',vendor:'GMTest',factory:''}],             reg:'저장완료', closed:false, closedAt:null },
+  { id:2, customer:'B', name:'Pegasus_N1C',  alCode:'KW5D83A', stage:'FAB', cls:'Pilot Wafer',       qty:5,   unit:'PCS', tmCode:'TMUI26',     netDie:'',   steps:[{step:'FAB',vendor:'TSMC',factory:'FAB8'}],                                                    reg:'일부등록', closed:false, closedAt:null },
+  { id:3, customer:'C', name:'Ratel_N1C',    alCode:'PJ2H67A', stage:'FAB', cls:'Production Wafer',  qty:6,   unit:'PCS', tmCode:'TMMQ65',     netDie:'1200',steps:[{step:'FAB',vendor:'TSMC',factory:'FAB8'},{step:'ASSEMBLY',vendor:'Amkor',factory:'K5'},{step:'FT',vendor:'ITEK',factory:''}], reg:'저장완료', closed:false, closedAt:null },
+  { id:4, customer:'A', name:'FALCON_N1B',   alCode:'QN8L44A', stage:'FAB', cls:'Production Wafer',  qty:75,  unit:'PCS', tmCode:'TMSV86',     netDie:'',   steps:[{step:'FAB',vendor:'TSMC',factory:'FAB8'}],                                                    reg:'일부등록', closed:false, closedAt:null },
+  { id:5, customer:'D', name:'THoTH3_N2C',   alCode:'MV3C59A', stage:'FAB', cls:'Pilot Wafer',       qty:25,  unit:'PCS', tmCode:'',           netDie:'',   steps:[{step:'FAB',vendor:'TSMC',factory:''}],                                                        reg:'미등록',   closed:false, closedAt:null },
+  { id:6, customer:'C', name:'Tachy-BS4_N1A',alCode:'HL6T38A', stage:'FAB', cls:'Production Wafer',  qty:25,  unit:'PCS', tmCode:'TMUE69',     netDie:'620',steps:[{step:'FAB',vendor:'TSMC',factory:'FAB5'},{step:'FT',vendor:'ITEK',factory:''}],              reg:'저장완료', closed:true,  closedAt:'2025-11-30' },
+];
+
+// ── 상태 ──────────────────────────────────────────────────────────────────
+let openId     = null;
+let closeCtx   = null;
+let reopenCtx  = null;
+
+// ── 등록상태 계산 ─────────────────────────────────────────────────────────
+function calcReg(p){
+  const hasTm      = p.tmCode.trim() !== '';
+  const hasFactory = p.steps[0] && p.steps[0].factory.trim() !== '';
+  const hasNd      = p.cls === 'MPW' || p.netDie.trim() !== '';
+  const required   = p.cls === 'MPW' ? 2 : 3;
+  const filled     = [hasTm, hasFactory, hasNd].filter(Boolean).length;
+  if(filled === required) return '저장완료';
+  if(filled > 0)          return '일부등록';
+  return '미등록';
+}
+
+function tmPlaceholder(cls){
+  return cls === 'MPW' ? '예: TMWC09_C16' : '예: TMMQ65';
+}
+
+function regBadge(r){
+  if(r==='저장완료') return '<span class="badge b-saved">저장완료</span>';
+  if(r==='일부등록') return '<span class="badge b-partial">일부등록</span>';
+  return '<span class="badge b-none">미등록</span>';
+}
+
+function stepSummary(steps){
+  if(!steps||!steps.length) return '<span style="color:var(--color-text-secondary);font-size:12px">—</span>';
+  return steps.map((s,i)=>`<span style="font-size:11px;padding:2px 6px;border-radius:3px;${i===0?'background:#E6F1FB;color:#185FA5':'background:var(--color-background-secondary);color:var(--color-text-secondary)'}">${s.step}</span>`).join('<span style="font-size:10px;color:var(--color-text-secondary);margin:0 2px">›</span>');
+}
+
+const clsBadge = {'MPW':'b-mpw','Pilot Wafer':'b-pilot','Production Wafer':'b-prod'};
+
+// ── 상세 패널 ─────────────────────────────────────────────────────────────
+function renderDetail(p){
+  const isMPW    = p.cls === 'MPW';
+  const isClosed = p.closed;
+
+  const closedBanner = isClosed ? `
+    <div class="closed-banner">
+      <span class="badge b-closed" style="flex-shrink:0">종료</span>
+      <span>종료일: <strong style="color:var(--color-text-primary)">${p.closedAt||'—'}</strong> · 종료된 과제입니다. 정보 수정은 가능하며 재개 시 활성 상태로 전환됩니다.</span>
+    </div>` : '';
+
+  const disAttr = isClosed ? ' disabled' : '';
+
+  return `<div class="detail-panel open${isClosed?' closed-panel':''}" id="panel-${p.id}">
+    ${closedBanner}
+    <div class="panel-inner">
+      <div class="panel-left">
+        <div>
+          <div class="panel-label">제품 정보 <span style="font-size:10px;color:var(--color-text-secondary);font-weight:400;text-transform:none">(FAB 전용)</span></div>
+          <div class="fab-fields">
+            <div class="fab-input-wrap">
+              <span style="font-size:11px;color:var(--color-text-secondary)">TM Code<span class="req-mark">*</span></span>
+              <input type="text" value="${p.tmCode}" placeholder="${tmPlaceholder(p.cls)}" id="tm-${p.id}" style="width:130px"${disAttr}>
+            </div>
+            ${!isMPW?`<div class="fab-input-wrap">
+              <span style="font-size:11px;color:var(--color-text-secondary)">Net Die<span class="req-mark">*</span></span>
+              <input type="text" value="${p.netDie}" placeholder="숫자" id="nd-${p.id}" style="width:80px"${disAttr}>
+            </div>`:''}
+          </div>
+        </div>
+        <div>
+          <div class="panel-label">상세 공정 등록</div>
+          <div class="future-tag">추후 개발</div>
+        </div>
+      </div>
+      <div class="panel-right">
+        <div class="panel-label">SCM Flow <span style="font-size:10px;color:var(--color-text-secondary);font-weight:400;text-transform:none">— seq 1 공장 필수<span class="req-mark">*</span></span></div>
+        <div class="step-scroll">
+          <table class="step-table">
+            <thead>
+              <tr>
+                <th>　</th>
+                ${p.steps.map((_,i)=>`<th style="min-width:106px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
+                    <span>${i+1}${i===0?'<span class="req-mark">*</span>':''}</span>
+                    ${i>0&&!isClosed?`<span class="del-btn" onclick="delStep(${p.id},${i})">×</span>`:''}
+                  </div>
+                </th>`).join('')}
+                ${!isClosed?`<th style="background:transparent;border:none;padding:4px 6px">
+                  <span class="add-step-btn" onclick="addStep(${p.id})">+</span>
+                </th>`:'<th style="background:transparent;border:none"></th>'}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="seq-cell">Step</td>
+                ${p.steps.map((s,i)=>`<td>
+                  <select onchange="updateStep(${p.id},${i},'step',this.value)"${i===0||isClosed?' disabled':''}>
+                    ${STEPS.map(st=>`<option${s.step===st?' selected':''}>${st}</option>`).join('')}
+                  </select>
+                </td>`).join('')}
+                <td style="border:none"></td>
+              </tr>
+              <tr>
+                <td class="seq-cell">업체</td>
+                ${p.steps.map((s,i)=>`<td>
+                  <select onchange="updateStep(${p.id},${i},'vendor',this.value)"${i===0||isClosed?' disabled':''}>
+                    ${VENDORS.map(v=>`<option${s.vendor===v?' selected':''}>${v}</option>`).join('')}
+                  </select>
+                </td>`).join('')}
+                <td style="border:none"></td>
+              </tr>
+              <tr>
+                <td class="seq-cell">공장</td>
+                ${p.steps.map((s,i)=>`<td>
+                  <input type="text" value="${s.factory}" placeholder="${i===0?'FAB12 / FAB8 / FAB5':'수기입력'}" id="factory-${p.id}-${i}"
+                    oninput="updateStep(${p.id},${i},'factory',this.value)"
+                    style="${i===0?'border-color:var(--color-border-primary)':''}"${isClosed?' disabled':''}>
+                </td>`).join('')}
+                <td style="border:none"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="panel-footer">
+      <div>
+        ${isClosed
+          ? `<button class="btn sm reopen" onclick="openReopenModal(${p.id})">재개</button>`
+          : `<button class="btn sm warn" onclick="openCloseModal(${p.id})">과제 종료처리</button>`
+        }
+      </div>
+      <div class="panel-footer-right">
+        <button class="btn sm" onclick="toggleRow(${p.id})">닫기</button>
+        ${!isClosed?`<button class="btn sm save" onclick="saveProject(${p.id})">저장</button>`:''}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── 메트릭 ────────────────────────────────────────────────────────────────
+function renderMetrics(){
+  const active = projects.filter(p=>!p.closed);
+  const mpw    = active.filter(p=>p.cls==='MPW').length;
+  const pilot  = active.filter(p=>p.cls==='Pilot Wafer').length;
+  const prod   = active.filter(p=>p.cls==='Production Wafer').length;
+  const none   = active.filter(p=>p.reg==='미등록').length;
+  const closed = projects.filter(p=>p.closed).length;
+  document.getElementById('metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">MPW</div><div class="metric-val" style="color:#854F0B">${mpw}</div></div>
+    <div class="metric"><div class="metric-label">Pilot Wafer</div><div class="metric-val" style="color:#3C3489">${pilot}</div></div>
+    <div class="metric"><div class="metric-label">Production Wafer</div><div class="metric-val" style="color:#3B6D11">${prod}</div></div>
+    <div class="metric"><div class="metric-label">미등록</div><div class="metric-val" style="color:#5F5E5A">${none}</div></div>
+    <div class="metric"><div class="metric-label">종료 과제</div><div class="metric-val" style="color:#5F5E5A">${closed}</div></div>
+  `;
+}
+
+// ── 메인 렌더 ─────────────────────────────────────────────────────────────
+function render(){
+  const q       = document.getElementById('search').value.toLowerCase();
+  const fc      = document.getElementById('f-cls').value;
+  const fr      = document.getElementById('f-reg').value;
+  const fStatus = document.getElementById('f-status').value;  // '' | 'active' | 'closed'
+
+  const filtered = projects.filter(p=>{
+    const mq = !q  || p.name.toLowerCase().includes(q) || p.alCode.toLowerCase().includes(q) || p.customer.toLowerCase().includes(q);
+    const mc = !fc || p.cls === fc;
+    const mr = !fr || p.reg === fr;
+    const ms = fStatus === '' ? true : fStatus === 'closed' ? p.closed : !p.closed;
+    return mq && mc && mr && ms;
+  });
+
+  document.getElementById('cnt').textContent = `${filtered.length}건`;
+
+  document.getElementById('tbody').innerHTML = filtered.map(p=>`
+    <tr class="main-row${openId===p.id?' open':''}${p.closed?' closed-row':''}" onclick="toggleRow(${p.id})">
+      <td><span class="chevron${openId===p.id?' open':''}">›</span></td>
+      <td style="font-weight:500">${p.customer}</td>
+      <td style="font-weight:500">${p.name}</td>
+      <td class="al-code">${p.alCode}</td>
+      <td><span class="badge b-fab">${p.stage}</span></td>
+      <td><span class="badge ${clsBadge[p.cls]||'b-pilot'}">${p.cls}</span></td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${p.qty.toLocaleString()} <span style="font-size:11px;color:var(--color-text-secondary)">${p.unit}</span></td>
+      <td style="font-size:12px;font-family:var(--font-mono);color:${p.tmCode?'var(--color-text-primary)':'var(--color-text-secondary)'}">${p.tmCode||'—'}</td>
+      <td style="font-size:12px;color:${p.netDie&&p.cls!=='MPW'?'var(--color-text-primary)':'var(--color-text-secondary)'}">${p.cls==='MPW'?'—':p.netDie||'—'}</td>
+      <td>${stepSummary(p.steps)}</td>
+      <td>${regBadge(p.reg)}</td>
+      <td>${p.closed?'<span class="badge b-closed">종료</span>':'<span style="font-size:11px;color:var(--color-text-secondary)">활성</span>'}</td>
+    </tr>
+    <tr class="detail-row">
+      <td colspan="12">${openId===p.id?renderDetail(p):''}</td>
+    </tr>
+  `).join('');
+
+  renderMetrics();
+}
+
+// ── 행 토글 ───────────────────────────────────────────────────────────────
+function toggleRow(id){
+  openId = openId === id ? null : id;
+  render();
+  if(openId !== null){
+    setTimeout(()=>{
+      const el = document.getElementById(`panel-${openId}`);
+      if(el) el.scrollIntoView({behavior:'smooth',block:'nearest'});
+    },50);
+  }
+}
+
+// ── SCM Flow 편집 ─────────────────────────────────────────────────────────
+function updateStep(pid,idx,field,val){ projects[pid].steps[idx][field]=val; }
+function addStep(pid){ projects[pid].steps.push({step:'CP',vendor:'Amkor',factory:''});render(); }
+function delStep(pid,idx){ if(idx===0)return; projects[pid].steps.splice(idx,1);render(); }
+
+// ── 저장 ──────────────────────────────────────────────────────────────────
+function saveProject(pid){
+  const p  = projects[pid];
+  const tm = document.getElementById(`tm-${pid}`);
+  const nd = document.getElementById(`nd-${pid}`);
+  const f0 = document.getElementById(`factory-${pid}-0`);
+  if(tm) p.tmCode        = tm.value.trim();
+  if(nd) p.netDie        = nd.value.trim();
+  if(f0) p.steps[0].factory = f0.value.trim();
+  p.reg = calcReg(p);
+  openId = null;
+  render();
+}
+
+// ── 과제 종료 모달 ────────────────────────────────────────────────────────
+function openCloseModal(id){
+  closeCtx = id;
+  const p  = projects[id];
+  document.getElementById('close-body').innerHTML=`
+    <strong>${p.name}</strong> (${p.customer}) 과제를 종료 처리합니다.
+    <br><br>
+    시작수량: <strong>${p.qty.toLocaleString()} ${p.unit}</strong> · SCM Flow: <strong>${p.steps.map(s=>s.step).join(' → ')}</strong>
+    <br><br>
+    종료된 과제는 기본 목록에서 숨겨지며, 입출하관리 신규 등록에서 제외됩니다.<br>
+    언제든지 재개할 수 있습니다.`;
+  document.getElementById('close-backdrop').classList.add('open');
+}
+function cancelClose(){
+  document.getElementById('close-backdrop').classList.remove('open');
+  closeCtx = null;
+}
+function confirmClose(){
+  if(closeCtx === null) return;
+  const p    = projects[closeCtx];
+  p.closed   = true;
+  p.closedAt = new Date().toISOString().slice(0,10);
+  openId     = null;
+  cancelClose();
+  render();
+}
+
+// ── 과제 재개 모달 ────────────────────────────────────────────────────────
+function openReopenModal(id){
+  reopenCtx = id;
+  const p   = projects[id];
+  document.getElementById('reopen-body').innerHTML=`
+    <strong>${p.name}</strong> (${p.customer}) 과제를 활성 상태로 재개합니다.
+    <br><br>종료일: <strong>${p.closedAt||'—'}</strong>`;
+  document.getElementById('reopen-backdrop').classList.add('open');
+}
+function cancelReopen(){
+  document.getElementById('reopen-backdrop').classList.remove('open');
+  reopenCtx = null;
+}
+function confirmReopen(){
+  if(reopenCtx === null) return;
+  const p  = projects[reopenCtx];
+  p.closed   = false;
+  p.closedAt = null;
+  openId     = null;
+  cancelReopen();
+  render();
+}
+
+// 백드롭 클릭 닫기
+['close-backdrop','reopen-backdrop'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('click', e=>{ if(e.target===el) el.classList.remove('open'); });
+});
+
+render();
+</script>
+</body>
+</html>
