@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>입출하관리 | 생산관리</title>
+<style>
+:root{
+  --bg:#F0F2F5;--surface:#fff;--border:#E0E3E8;
+  --text:#1A1D23;--text2:#5A6070;
+  --primary:#3B5BDB;--primary-h:#2F4AC4;
+  --mpw-bg:#FEF8F0;--mpw:#854F0B;
+  --pilot-bg:#F6F5FF;--pilot:#3C3489;
+  --prod-bg:#F3F9ED;--prod:#27500A;
+  --green:#2F9E44;--red:#E03131;
+  --panel-bg:#F8F9FA;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Apple SD Gothic Neo',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+a{color:inherit;text-decoration:none}
+
+/* NAV */
+.nav{background:#1A1D23;color:#fff;display:flex;align-items:center;padding:0 24px;height:48px;gap:4px;flex-shrink:0}
+.nav-brand{font-weight:700;font-size:15px;margin-right:20px}
+.nav-item{padding:0 14px;height:48px;display:flex;align-items:center;font-size:13px;color:#9CA3AF;cursor:pointer;border-bottom:2px solid transparent;transition:.15s}
+.nav-item:hover{color:#fff}
+.nav-item.on{color:#fff;border-bottom-color:var(--primary)}
+
+/* LAYOUT */
+.main{display:flex;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:260px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.sb-hd{padding:14px 16px 10px;border-bottom:1px solid var(--border)}
+.sb-hd h2{font-size:14px;font-weight:700;margin-bottom:8px}
+.sb-search{width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;outline:none}
+.sb-search:focus{border-color:var(--primary)}
+.sb-list{flex:1;overflow-y:auto;padding:8px 0}
+.sb-item{padding:10px 16px;cursor:pointer;border-left:3px solid transparent;transition:.12s}
+.sb-item:hover{background:#F8F9FA}
+.sb-item.active{background:#EEF2FF;border-left-color:var(--primary)}
+.sb-item-name{font-size:13px;font-weight:600;margin-bottom:2px}
+.sb-item-meta{font-size:11px;color:var(--text2)}
+.badge{display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700}
+.b-mpw{background:var(--mpw-bg);color:var(--mpw)}
+.b-pilot{background:var(--pilot-bg);color:var(--pilot)}
+.b-prod{background:var(--prod-bg);color:var(--prod)}
+
+/* CONTENT */
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* proj bar */
+.proj-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:16px;flex-shrink:0}
+.proj-name{font-size:17px;font-weight:700}
+.proj-meta{font-size:12px;color:var(--text2);display:flex;gap:10px;flex-wrap:wrap}
+.proj-meta span{display:flex;align-items:center;gap:4px}
+.meta-label{font-weight:600}
+
+/* step tabs */
+.tab-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;gap:0;flex-shrink:0}
+.tab{padding:10px 18px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:var(--text2);transition:.12s}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+
+/* panel */
+.panel{flex:1;overflow-y:auto;padding:20px}
+
+/* section */
+.section{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;overflow:hidden}
+.sec-hd{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.sec-title{font-size:14px;font-weight:700;flex:1}
+.sec-badge-in{background:#EEF2FF;color:#3B5BDB;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.sec-badge-out{background:#FFF3BF;color:#7A5000;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+
+/* method toggle */
+.method-toggle{display:flex;gap:6px;align-items:center}
+.mt-btn{padding:4px 12px;border-radius:6px;border:1px solid var(--border);font-size:12px;cursor:pointer;background:#fff;font-weight:500;transition:.12s}
+.mt-btn:hover{background:#F0F2F5}
+.mt-btn.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+.mt-parse{border-color:#D9770040;color:#7A5000;background:#FFFBF0}
+.mt-parse.on{background:#D97700;color:#fff;border-color:#D97700}
+
+/* record table */
+.rec-wrap{overflow-x:auto}
+.rec{width:100%;border-collapse:collapse;font-size:13px}
+.rec th{background:#F3F5F8;padding:7px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap}
+.rec td{padding:7px 10px;border-bottom:1px solid #F0F2F5;vertical-align:middle}
+.rec tr:last-child td{border-bottom:none}
+.rec-mono{font-family:monospace}
+.rec-action{display:flex;gap:4px}
+.empty-row{padding:24px;text-align:center;color:var(--text2);font-size:13px}
+
+/* status chips */
+.st-pill{padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600}
+.st-진행중{background:#EEF2FF;color:#3B5BDB}
+.st-완료{background:#EBFBEE;color:#2F9E44}
+.st-scrap{background:#FFE3E3;color:#C92A2A}
+.dir-pill{padding:1px 7px;border-radius:10px;font-size:11px;background:#F3F5F8;color:#333}
+
+.btn{padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:.15s}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-xs{padding:2px 7px;font-size:11px}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-h)}
+.btn-ghost{background:#fff;border:1px solid var(--border);color:var(--text)}
+.btn-ghost:hover{background:#f0f0f0}
+.btn-danger{background:#fff;border:1px solid #fcc;color:var(--red)}
+.btn-danger:hover{background:#FFF5F5}
+
+/* empty state */
+.no-proj{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:15px}
+
+/* ─────── MODAL ─────── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;z-index:200;padding-top:60px;overflow-y:auto}
+.overlay.open{display:flex}
+.modal-box{background:#fff;border-radius:10px;width:700px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal-box.sm{width:520px}
+.modal-hd{padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-hd h3{font-size:15px;font-weight:700}
+.modal-close{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text2)}
+.modal-body{padding:18px 20px;overflow-y:auto;flex:1}
+.modal-ft{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0}
+
+/* form grid */
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.fg.cols3{grid-template-columns:1fr 1fr 1fr}
+.fg.full{grid-template-columns:1fr}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:12px;font-weight:600;color:var(--text2)}
+.field input,.field select{border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;color:var(--text);outline:none;background:#fff}
+.field input:focus,.field select:focus{border-color:var(--primary)}
+.field-note{font-size:11px;color:var(--text2);margin-top:2px}
+
+/* lot table in modal */
+.lot-section{margin-top:12px}
+.lot-sec-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.lot-sec-hd span{font-size:13px;font-weight:600}
+.lot-tbl{width:100%;border-collapse:collapse;font-size:12px;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.lot-tbl th{background:#F3F5F8;padding:6px 8px;font-size:11px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap;text-align:left}
+.lot-tbl td{padding:4px 6px;border-bottom:1px solid #F0F2F5;vertical-align:middle}
+.lot-tbl tr:last-child td{border-bottom:none}
+.lot-inp{width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:12px;outline:none}
+.lot-inp:focus{border-color:var(--primary)}
+.lot-sel{width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:12px;outline:none;background:#fff}
+.lot-sel:focus{border-color:var(--primary)}
+
+/* upload area */
+.upload-area{border:2px dashed var(--border);border-radius:8px;padding:28px;text-align:center;cursor:pointer;transition:.15s;margin-bottom:12px}
+.upload-area:hover{border-color:var(--primary);background:#F8F9FF}
+.upload-area-title{font-size:14px;font-weight:500;margin-bottom:6px}
+.upload-area-sub{font-size:12px;color:var(--text2)}
+.upload-area-sub a{color:var(--primary);cursor:pointer;text-decoration:underline}
+
+.parse-area{width:100%;height:120px;border:1px solid var(--border);border-radius:6px;padding:10px;font-size:12px;font-family:monospace;resize:vertical;outline:none}
+.parse-area:focus{border-color:var(--primary)}
+.parse-ok{color:var(--green);font-size:13px;font-weight:600;margin-bottom:8px}
+.parse-err{color:var(--red);font-size:13px}
+
+.note-row{margin-top:12px}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand">MJ 생산관리</span>
+  <a href="production_plan_v1.html"><span class="nav-item">생산계획목록</span></a>
+  <a href="production_projectinfo_v1.html"><span class="nav-item">생산과제정보등록</span></a>
+  <a href="production_shipmentmanagement_v1.html"><span class="nav-item on">입출하관리</span></a>
+</nav>
+
+<div class="main">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-hd">
+      <h2>과제 목록</h2>
+      <input class="sb-search" placeholder="과제명·AL Code 검색" oninput="filterSidebar(this.value)">
+    </div>
+    <div class="sb-list" id="sb-list"></div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content" id="content">
+    <div class="no-proj" id="no-proj">← 좌측 과제를 선택하세요</div>
+    <div id="proj-view" style="display:none;flex:1;display:none;flex-direction:column;overflow:hidden">
+      <div class="proj-bar">
+        <div>
+          <div class="proj-name" id="pv-name"></div>
+          <div class="proj-meta" id="pv-meta"></div>
+        </div>
+      </div>
+      <div class="tab-bar" id="tab-bar"></div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Manual Modal -->
+<div class="overlay" id="ov-manual">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <h3 id="mm-title">수기 입력</h3>
+      <button class="modal-close" onclick="closeManual()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="mm-hdr-fields"></div>
+      <div class="lot-section">
+        <div class="lot-sec-hd">
+          <span>Lot 목록</span>
+          <button class="btn btn-ghost btn-sm" onclick="addLotRow()">+ 행 추가</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="lot-tbl">
+            <thead id="mm-lot-thead"></thead>
+            <tbody id="mm-lot-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="note-row">
+        <div class="field">
+          <label>메모</label>
+          <input id="mm-note" placeholder="메모">
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeManual()">취소</button>
+      <button class="btn btn-primary" onclick="saveManual()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Excel Modal -->
+<div class="overlay" id="ov-excel">
+  <div class="modal-box sm">
+    <div class="modal-hd">
+      <h3 id="xm-title">Excel 업로드</h3>
+      <button class="modal-close" onclick="closeExcel()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="xm-hdr-fields"></div>
+      <div class="upload-area" onclick="document.getElementById('xl-file').click()">
+        <input type="file" id="xl-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleExcelFile(this)">
+        <div class="upload-area-title">📂 파일 선택 또는 드래그</div>
+        <div class="upload-area-sub">.xlsx / .xls / .csv &nbsp;|&nbsp; <a onclick="loadDemoExcel(event)">데모 데이터 로드</a></div>
+      </div>
+      <div id="xl-preview"></div>
+      <div class="note-row">
+        <div class="field">
+          <label>메모</label>
+          <input id="xm-note" placeholder="메모">
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeExcel()">취소</button>
+      <button class="btn btn-primary" id="xl-save-btn" style="display:none" onclick="saveExcel()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Parse Modal (FAB OUT) -->
+<div class="overlay" id="ov-parse">
+  <div class="modal-box sm">
+    <div class="modal-hd">
+      <h3>TSMC Invoice 파싱</h3>
+      <button class="modal-close" onclick="closeParse()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg cols3" style="margin-bottom:12px">
+        <div class="field"><label>Ver</label><input id="pm-ver" placeholder="A"></div>
+        <div class="field"><label>날짜</label><input id="pm-date" type="date"></div>
+        <div class="field"><label>Lot ID</label><input id="pm-lot" placeholder="LOT-2601-001" class="mono"></div>
+      </div>
+      <div class="field" style="margin-bottom:10px">
+        <label>Invoice 내용 붙여넣기</label>
+        <textarea class="parse-area" id="pm-text" placeholder="TSMC Invoice 텍스트를 붙여넣으세요..."></textarea>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="runParse()" style="margin-bottom:12px">파싱 실행</button>
+      <div id="pm-preview"></div>
+      <div class="note-row">
+        <div class="field"><label>메모</label><input id="pm-note" placeholder="메모"></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeParse()">취소</button>
+      <button class="btn btn-primary" id="pm-save-btn" style="display:none" onclick="saveParse()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ─── PROJECTS ─── */
+const PROJECTS=[
+  {id:0,customer:'Samsung',name:'SI0136A',alCode:'BX4K72A',cls:'MPW',qty:40,unit:'EA',tmCode:'TMWC09_C16',netDie:'',scmFlow:['FAB']},
+  {id:1,customer:'SK Hynix',name:'ANA38413_N1C',alCode:'TR9M21A',cls:'Pilot Wafer',qty:5,unit:'PCS',tmCode:'TMVZ07',netDie:'850',scmFlow:['FAB','CP']},
+  {id:2,customer:'LG Electronics',name:'Ratel_N1C',alCode:'PJ2H67A',cls:'Production Wafer',qty:6,unit:'PCS',tmCode:'TMMQ65',netDie:'1200',scmFlow:['FAB','ASSEMBLY','FT']},
+  {id:3,customer:'Samsung',name:'FALCON_N1B',alCode:'QN8L44A',cls:'Production Wafer',qty:50,unit:'PCS',tmCode:'TMSV86',netDie:'',scmFlow:['FAB']},
+  {id:4,customer:'LG Electronics',name:'Tachy-BS4_N1A',alCode:'HL6T38A',cls:'Production Wafer',qty:20,unit:'PCS',tmCode:'TMUE69',netDie:'620',scmFlow:['FAB','FT']},
+];
+
+/* ─── RECORDS ─── */
+let nextId=100;
+const RECORDS=[
+  /* SI0136A FAB IN */
+  {id:1,pid:0,step:'FAB',dir:'IN',ver:'A',date:'2026-01-25',note:'초도 투입',
+   lots:[{lotId:'LOT-2601-001',qty:25,waferNo:'#1~#25'}]},
+  /* SI0136A FAB OUT */
+  {id:2,pid:0,step:'FAB',dir:'OUT',ver:'A',date:'2026-03-12',note:'완료',
+   lots:[{lotId:'LOT-2601-001',qty:24,waferNo:'#1~#24',status:'완료',direction:'고객출하',reject:1,yld:'96.00'}]},
+  /* ANA38413 FAB IN */
+  {id:3,pid:1,step:'FAB',dir:'IN',ver:'A',date:'2026-02-20',note:'',
+   lots:[{lotId:'LOT-2602-001',qty:2,waferNo:'#1 #2'}]},
+  /* ANA38413 CP IN */
+  {id:4,pid:1,step:'CP',dir:'IN',receiveDate:'2026-04-01',startDate:'2026-04-03',lotId:'LOT-2602-001',note:'',
+   lots:[
+     {waferNo:'#1',inQtyPcs:1,inQtyEa:15000},
+     {waferNo:'#2',inQtyPcs:1,inQtyEa:14800},
+   ]},
+  /* ANA38413 CP OUT */
+  {id:5,pid:1,step:'CP',dir:'OUT',endDate:'2026-04-20',lotId:'LOT-2602-001',note:'',
+   lots:[
+     {waferNo:'#1',outQtyPcs:1,outQtyEa:14750,reject:250,yld:'98.33',status:'완료',direction:'고객출하'},
+     {waferNo:'#2',outQtyPcs:1,outQtyEa:14600,reject:200,yld:'98.65',status:'완료',direction:'고객출하'},
+   ]},
+];
+
+/* ─── FIELD SCHEMAS ─── */
+const IN_FIELDS={
+  FAB:{
+    header:[
+      {k:'ver',label:'Ver',type:'text',placeholder:'A',width:'70px'},
+      {k:'date',label:'IN 날짜',type:'date'},
+    ],
+    lots:[
+      {k:'lotId',label:'Lot ID',mono:true,width:'140px'},
+      {k:'qty',label:'수량(Wafer)',type:'number',width:'90px'},
+      {k:'waferNo',label:'Wafer No.',mono:true,width:'130px'},
+    ]
+  },
+  _default:{
+    header:[
+      {k:'receiveDate',label:'입고일',type:'date'},
+      {k:'startDate',label:'시작일',type:'date'},
+      {k:'lotId',label:'Lot ID',type:'text',mono:true,placeholder:'LOT-XXXX'},
+    ],
+    lots:[
+      {k:'waferNo',label:'Wafer No.',mono:true,width:'100px'},
+      {k:'inQtyPcs',label:'In(PCS)',type:'number',width:'80px'},
+      {k:'inQtyEa',label:'In(EA)',type:'number',width:'90px'},
+    ]
+  }
+};
+const OUT_FIELDS={
+  FAB:{
+    header:[
+      {k:'ver',label:'Ver',type:'text',placeholder:'A',width:'70px'},
+      {k:'date',label:'날짜',type:'date'},
+    ],
+    lots:[
+      {k:'lotId',label:'Lot ID',mono:true,width:'140px'},
+      {k:'qty',label:'수량',type:'number',width:'80px'},
+      {k:'waferNo',label:'Wafer No.',mono:true,width:'130px'},
+      {k:'status',label:'상태',type:'select',options:['진행중','완료','scrap'],width:'90px'},
+      {k:'direction',label:'처리방향',type:'select',options:['다음step','고객출하','보관','기타'],width:'100px'},
+      {k:'reject',label:'Reject',type:'number',width:'80px'},
+      {k:'yld',label:'YLD%',type:'text',width:'80px'},
+    ]
+  },
+  _default:{
+    header:[
+      {k:'endDate',label:'종료일',type:'date'},
+      {k:'lotId',label:'Lot ID',type:'text',mono:true,placeholder:'LOT-XXXX'},
+    ],
+    lots:[
+      {k:'waferNo',label:'Wafer No.',mono:true,width:'100px'},
+      {k:'outQtyPcs',label:'Out(PCS)',type:'number',width:'80px'},
+      {k:'outQtyEa',label:'Out(EA)',type:'number',width:'90px'},
+      {k:'reject',label:'Reject(EA)',type:'number',width:'90px'},
+      {k:'yld',label:'YLD%',type:'text',width:'80px'},
+      {k:'status',label:'상태',type:'select',options:['진행중','완료','scrap'],width:'90px'},
+      {k:'direction',label:'처리방향',type:'select',options:['다음step','고객출하','보관','기타'],width:'100px'},
+    ]
+  }
+};
+
+/* ─── TABLE COLUMNS ─── */
+const REC_COLS={
+  FAB_IN:[
+    {h:'Ver',f:'ver'},{h:'IN 날짜',f:'date'},{h:'Lot ID',f:'lotId0',mono:true},
+    {h:'수량(Wafer)',f:'qty0'},{h:'Wafer No.',f:'waferNo0',mono:true},{h:'메모',f:'note'}
+  ],
+  FAB_OUT:[
+    {h:'Ver',f:'ver'},{h:'날짜',f:'date'},{h:'Lot ID',f:'lotId0',mono:true},
+    {h:'수량',f:'qty0'},{h:'Wafer No.',f:'waferNo0',mono:true},
+    {h:'상태',f:'status0'},{h:'처리방향',f:'direction0'},{h:'Reject',f:'reject0'},{h:'YLD%',f:'yld0'},{h:'메모',f:'note'}
+  ],
+  _IN:[
+    {h:'입고일',f:'receiveDate'},{h:'시작일',f:'startDate'},{h:'Lot ID',f:'lotId',mono:true},
+    {h:'Lot수',f:'lotCount'},{h:'In(PCS)',f:'inPcsSum'},{h:'In(EA)',f:'inEaSum'},{h:'메모',f:'note'}
+  ],
+  _OUT:[
+    {h:'종료일',f:'endDate'},{h:'Lot ID',f:'lotId',mono:true},
+    {h:'Lot수',f:'lotCount'},{h:'Out(PCS)',f:'outPcsSum'},{h:'Out(EA)',f:'outEaSum'},
+    {h:'Reject(EA)',f:'rejectSum'},{h:'Avg YLD%',f:'yldAvg'},
+    {h:'상태',f:'statusList'},{h:'처리방향',f:'dirList'},{h:'메모',f:'note'}
+  ]
+};
+
+function getCols(step,dir){
+  if(step==='FAB') return REC_COLS[`FAB_${dir}`];
+  return REC_COLS[`_${dir}`];
+}
+function getFields(step,dir){
+  const map=dir==='IN'?IN_FIELDS:OUT_FIELDS;
+  return map[step]||map['_default'];
+}
+
+function getCellVal(rec,field){
+  switch(field){
+    case 'lotId0': return rec.lots?.[0]?.lotId||'';
+    case 'qty0': return rec.lots?.[0]?.qty||'';
+    case 'waferNo0': return rec.lots?.[0]?.waferNo||'';
+    case 'status0':{const s=rec.lots?.[0]?.status||'';return s?`<span class="st-pill st-${s}">${s}</span>`:'';};
+    case 'direction0':{const d=rec.lots?.[0]?.direction||'';return d?`<span class="dir-pill">${d}</span>`:'';};
+    case 'reject0': return rec.lots?.[0]?.reject??'';
+    case 'yld0': return rec.lots?.[0]?.yld?rec.lots[0].yld+'%':'';
+    case 'lotCount': return rec.lots?.length||0;
+    case 'inPcsSum': return (rec.lots||[]).reduce((a,r)=>a+(+r.inQtyPcs||0),0);
+    case 'inEaSum': return ((rec.lots||[]).reduce((a,r)=>a+(+r.inQtyEa||0),0)).toLocaleString();
+    case 'outPcsSum': return (rec.lots||[]).reduce((a,r)=>a+(+r.outQtyPcs||0),0);
+    case 'outEaSum': return ((rec.lots||[]).reduce((a,r)=>a+(+r.outQtyEa||0),0)).toLocaleString();
+    case 'rejectSum': return (rec.lots||[]).reduce((a,r)=>a+(+r.reject||0),0);
+    case 'yldAvg':{const v=(rec.lots||[]).filter(r=>r.yld);if(!v.length)return '';return (v.reduce((a,r)=>a+(+r.yld),0)/v.length).toFixed(2)+'%';};
+    case 'statusList':{const s=[...new Set((rec.lots||[]).map(r=>r.status).filter(Boolean))];return s.map(x=>`<span class="st-pill st-${x}">${x}</span>`).join(' ');};
+    case 'dirList':{const d=[...new Set((rec.lots||[]).map(r=>r.direction).filter(Boolean))];return d.map(x=>`<span class="dir-pill">${x}</span>`).join(' ');};
+    default: return rec[field]??'';
+  }
+}
+
+/* ─── SIDEBAR ─── */
+function clsBadge(cls){
+  if(cls==='MPW') return '<span class="badge b-mpw">MPW</span>';
+  if(cls==='Pilot Wafer') return '<span class="badge b-pilot">Pilot</span>';
+  return '<span class="badge b-prod">Prod</span>';
+}
+
+let selPid=-1, selStep='', sbQuery='';
+
+function filterSidebar(q){sbQuery=q;renderSidebar();}
+
+function renderSidebar(){
+  const q=sbQuery.toLowerCase();
+  const items=PROJECTS.filter(p=>!q||p.name.toLowerCase().includes(q)||p.alCode.toLowerCase().includes(q));
+  document.getElementById('sb-list').innerHTML=items.map(p=>`
+    <div class="sb-item ${selPid===p.id?'active':''}" onclick="selectProj(${p.id})">
+      <div class="sb-item-name">${p.name} ${clsBadge(p.cls)}</div>
+      <div class="sb-item-meta">${p.alCode} &nbsp;·&nbsp; ${p.customer}</div>
+    </div>
+  `).join('');
+}
+
+function selectProj(pid){
+  selPid=pid;
+  const p=PROJECTS.find(x=>x.id===pid);
+  renderSidebar();
+  document.getElementById('no-proj').style.display='none';
+  const pv=document.getElementById('proj-view');
+  pv.style.display='flex';
+  pv.style.flexDirection='column';
+  pv.style.overflow='hidden';
+  pv.style.flex='1';
+
+  document.getElementById('pv-name').textContent=`${p.name}`;
+  document.getElementById('pv-meta').innerHTML=`
+    <span>${clsBadge(p.cls)}</span>
+    <span><span class="meta-label">AL Code</span> <span class="mono" style="font-size:12px">${p.alCode}</span></span>
+    <span><span class="meta-label">TM Code</span> ${p.tmCode||'-'}</span>
+    <span><span class="meta-label">Net Die</span> ${p.netDie||'-'}</span>
+    <span><span class="meta-label">고객사</span> ${p.customer}</span>
+    <span><span class="meta-label">총 Start Qty</span> ${p.qty.toLocaleString()} ${p.unit}</span>
+  `;
+
+  if(!selStep||!p.scmFlow.includes(selStep)) selStep=p.scmFlow[0]||'FAB';
+  renderTabs(p);
+  renderPanel(p);
+}
+
+function renderTabs(p){
+  document.getElementById('tab-bar').innerHTML=p.scmFlow.map(s=>`
+    <div class="tab ${selStep===s?'on':''}" onclick="selectTab('${s}')">${s}</div>
+  `).join('');
+}
+
+function selectTab(step){
+  selStep=step;
+  const p=PROJECTS.find(x=>x.id===selPid);
+  renderTabs(p);renderPanel(p);
+}
+
+/* ─── PANEL ─── */
+function renderPanel(p){
+  const step=selStep;
+  const inRecs=RECORDS.filter(r=>r.pid===p.id&&r.step===step&&r.dir==='IN');
+  const outRecs=RECORDS.filter(r=>r.pid===p.id&&r.step===step&&r.dir==='OUT');
+  document.getElementById('panel').innerHTML=`
+    ${buildSection('IN',step,inRecs,p)}
+    ${buildSection('OUT',step,outRecs,p)}
+  `;
+}
+
+function buildSection(dir,step,recs,p){
+  const isFab=step==='FAB';
+  const methodOptions= dir==='IN'
+    ? (isFab?['manual']:['manual','excel'])
+    : (isFab?['manual','excel','parse']:['manual','excel']);
+
+  const methodBtns=methodOptions.map(m=>{
+    if(m==='manual') return `<button class="mt-btn on" id="mt-${dir}-manual" onclick="openManual('${step}','${dir}')" style="margin:0">+ 수기 입력</button>`;
+    if(m==='excel') return `<button class="mt-btn" id="mt-${dir}-excel" onclick="openExcel('${step}','${dir}')" style="margin:0">+ Excel 업로드</button>`;
+    if(m==='parse') return `<button class="mt-parse mt-btn" onclick="openParse()" style="margin:0">+ TSMC 파싱</button>`;
+    return '';
+  }).join('');
+
+  const badge=dir==='IN'
+    ?`<span class="sec-badge-in">IN 입고</span>`
+    :`<span class="sec-badge-out">OUT 출하</span>`;
+
+  const cols=getCols(step,dir);
+  const thead=`<tr>${cols.map(c=>`<th${c.mono?' class="rec-mono"':''}>${c.h}</th>`).join('')}<th></th></tr>`;
+  const tbody=recs.length
+    ? recs.map(r=>`<tr>
+        ${cols.map(c=>`<td${c.mono?' class="rec-mono"':''}>${getCellVal(r,c.f)}</td>`).join('')}
+        <td><div class="rec-action">
+          <button class="btn btn-xs btn-ghost" onclick="deleteRec(${r.id})">삭제</button>
+        </div></td>
+      </tr>`).join('')
+    :`<tr><td colspan="${cols.length+1}" class="empty-row">등록된 ${dir==='IN'?'입고':'출하'} 기록이 없습니다</td></tr>`;
+
+  return `<div class="section">
+    <div class="sec-hd">
+      <span class="sec-title">${step} ${badge}</span>
+      <div class="method-toggle">${methodBtns}</div>
+    </div>
+    <div class="rec-wrap">
+      <table class="rec"><thead>${thead}</thead><tbody>${tbody}</tbody></table>
+    </div>
+  </div>`;
+}
+
+function deleteRec(id){
+  const i=RECORDS.findIndex(r=>r.id===id);
+  if(i>=0) RECORDS.splice(i,1);
+  const p=PROJECTS.find(x=>x.id===selPid);
+  renderPanel(p);
+}
+
+/* ─── MODAL STATE ─── */
+let modalCtx={step:'',dir:''};
+let excelRows=[];
+let parseRows=[];
+
+/* ─── MANUAL MODAL ─── */
+function openManual(step,dir){
+  modalCtx={step,dir};
+  const fields=getFields(step,dir);
+  const isFab=step==='FAB';
+  document.getElementById('mm-title').textContent=`${step} ${dir==='IN'?'입고':'출하'} — 수기 입력`;
+
+  /* header fields */
+  const hf=fields.header;
+  document.getElementById('mm-hdr-fields').innerHTML=`<div class="fg cols3" style="margin-bottom:4px">${
+    hf.map(f=>`<div class="field">
+      <label>${f.label}</label>
+      <input id="hf-${f.k}" type="${f.type||'text'}" placeholder="${f.placeholder||''}" style="${f.width?'width:'+f.width:''}">
+    </div>`).join('')
+  }</div>`;
+
+  /* lot table */
+  const lf=fields.lots;
+  document.getElementById('mm-lot-thead').innerHTML=`<tr>${lf.map(f=>`<th>${f.label}</th>`).join('')}<th></th></tr>`;
+  document.getElementById('mm-lot-tbody').innerHTML='';
+  addLotRow();
+
+  document.getElementById('mm-note').value='';
+  document.getElementById('ov-manual').classList.add('open');
+}
+
+function addLotRow(){
+  const lf=getFields(modalCtx.step,modalCtx.dir).lots;
+  const rid=Date.now();
+  const tbody=document.getElementById('mm-lot-tbody');
+  const tr=document.createElement('tr');
+  tr.id=`lr-${rid}`;
+  tr.innerHTML=lf.map(f=>{
+    if(f.type==='select'){
+      return `<td><select class="lot-sel" id="lf-${rid}-${f.k}">${(f.options||[]).map(o=>`<option>${o}</option>`).join('')}</select></td>`;
+    }
+    return `<td><input class="lot-inp${f.mono?' mono':''}" id="lf-${rid}-${f.k}" type="${f.type||'text'}" style="${f.width?'width:'+f.width:'width:100%'}"></td>`;
+  }).join('')+`<td><button class="btn btn-xs btn-danger" onclick="document.getElementById('lr-${rid}').remove()">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function closeManual(){document.getElementById('ov-manual').classList.remove('open');}
+
+function saveManual(){
+  const fields=getFields(modalCtx.step,modalCtx.dir);
+  const rec={id:nextId++,pid:selPid,step:modalCtx.step,dir:modalCtx.dir,
+    note:document.getElementById('mm-note').value,lots:[]};
+
+  /* header */
+  fields.header.forEach(f=>{rec[f.k]=document.getElementById(`hf-${f.k}`)?.value||'';});
+
+  /* lots */
+  const tbody=document.getElementById('mm-lot-tbody');
+  [...tbody.querySelectorAll('tr')].forEach(tr=>{
+    const rid=tr.id.replace('lr-','');
+    const lot={};
+    fields.lots.forEach(f=>{
+      const el=document.getElementById(`lf-${rid}-${f.k}`);
+      if(el) lot[f.k]=el.value;
+    });
+    if(Object.values(lot).some(v=>v)) rec.lots.push(lot);
+  });
+
+  if(!rec.lots.length){alert('Lot 데이터를 입력해주세요.');return;}
+  RECORDS.push(rec);
+  closeManual();
+  const p=PROJECTS.find(x=>x.id===selPid);
+  renderPanel(p);
+}
+
+/* ─── EXCEL MODAL ─── */
+function openExcel(step,dir){
+  modalCtx={step,dir};
+  excelRows=[];
+  document.getElementById('xm-title').textContent=`${step} ${dir==='IN'?'입고':'출하'} — Excel 업로드`;
+  document.getElementById('xl-preview').innerHTML='';
+  document.getElementById('xl-save-btn').style.display='none';
+  document.getElementById('xm-note').value='';
+  document.getElementById('xl-file').value='';
+
+  /* header fields for excel */
+  const fields=getFields(step,dir);
+  document.getElementById('xm-hdr-fields').innerHTML=`<div class="fg" style="margin-bottom:12px">${
+    fields.header.map(f=>`<div class="field">
+      <label>${f.label}</label>
+      <input id="xf-${f.k}" type="${f.type||'text'}" placeholder="${f.placeholder||''}">
+    </div>`).join('')
+  }</div>`;
+
+  document.getElementById('ov-excel').classList.add('open');
+}
+function closeExcel(){document.getElementById('ov-excel').classList.remove('open');}
+
+function handleExcelFile(input){
+  /* In production, use SheetJS. Here we simulate with demo data. */
+  loadDemoExcel(null, input.files[0]?.name||'file.xlsx');
+}
+
+function loadDemoExcel(e, filename){
+  if(e) e.preventDefault();
+  const step=modalCtx.step; const dir=modalCtx.dir;
+  if(dir==='IN'){
+    excelRows=[
+      {waferNo:'#1',inQtyPcs:1,inQtyEa:15200},
+      {waferNo:'#2',inQtyPcs:1,inQtyEa:15000},
+      {waferNo:'#3',inQtyPcs:1,inQtyEa:14800},
+    ];
+    const total=excelRows.reduce((a,r)=>a+(+r.inQtyEa),0);
+    const rows=excelRows.map((r,i)=>`<tr><td>${i+1}</td><td class="rec-mono">${r.waferNo}</td><td>${r.inQtyPcs}</td><td>${(+r.inQtyEa).toLocaleString()}</td></tr>`).join('');
+    document.getElementById('xl-preview').innerHTML=`<div class="parse-ok">✅ ${excelRows.length}건 — In(EA) 합계: ${total.toLocaleString()}</div>
+      <div style="overflow-x:auto"><table class="rec"><thead><tr><th>#</th><th>Wafer No.</th><th>In(PCS)</th><th>In(EA)</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  } else {
+    excelRows=[
+      {waferNo:'#1',outQtyPcs:1,outQtyEa:14950,reject:250,yld:'98.36',status:'완료',direction:'다음step'},
+      {waferNo:'#2',outQtyPcs:1,outQtyEa:14780,reject:220,yld:'98.53',status:'완료',direction:'다음step'},
+      {waferNo:'#3',outQtyPcs:1,outQtyEa:14600,reject:200,yld:'98.65',status:'완료',direction:'고객출하'},
+    ];
+    const total=excelRows.reduce((a,r)=>a+(+r.outQtyEa),0);
+    const rows=excelRows.map((r,i)=>`<tr><td>${i+1}</td><td class="rec-mono">${r.waferNo}</td><td>${r.outQtyPcs}</td><td>${(+r.outQtyEa).toLocaleString()}</td><td>${r.reject}</td><td>${r.yld}%</td><td>${r.status}</td><td>${r.direction}</td></tr>`).join('');
+    document.getElementById('xl-preview').innerHTML=`<div class="parse-ok">✅ ${excelRows.length}건 — Out(EA) 합계: ${total.toLocaleString()}</div>
+      <div style="overflow-x:auto"><table class="rec"><thead><tr><th>#</th><th>Wafer No.</th><th>Out(PCS)</th><th>Out(EA)</th><th>Reject</th><th>YLD%</th><th>상태</th><th>처리방향</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+  document.getElementById('xl-save-btn').style.display='inline-block';
+}
+
+function saveExcel(){
+  if(!excelRows.length){alert('데이터를 먼저 로드하세요.');return;}
+  const fields=getFields(modalCtx.step,modalCtx.dir);
+  const rec={id:nextId++,pid:selPid,step:modalCtx.step,dir:modalCtx.dir,
+    note:document.getElementById('xm-note').value,lots:excelRows};
+  fields.header.forEach(f=>{rec[f.k]=document.getElementById(`xf-${f.k}`)?.value||'';});
+  RECORDS.push(rec);
+  closeExcel();
+  const p=PROJECTS.find(x=>x.id===selPid);
+  renderPanel(p);
+}
+
+/* ─── PARSE MODAL (FAB OUT) ─── */
+function openParse(){
+  parseRows=[];
+  document.getElementById('pm-ver').value='';
+  document.getElementById('pm-date').value='';
+  document.getElementById('pm-lot').value='';
+  document.getElementById('pm-text').value='';
+  document.getElementById('pm-preview').innerHTML='';
+  document.getElementById('pm-save-btn').style.display='none';
+  document.getElementById('pm-note').value='';
+  document.getElementById('ov-parse').classList.add('open');
+}
+function closeParse(){document.getElementById('ov-parse').classList.remove('open');}
+
+function runParse(){
+  const text=document.getElementById('pm-text').value.trim();
+  if(!text){
+    /* demo parse */
+    parseRows=[
+      {lotId:'LOT-2601-001',qty:24,waferNo:'#1~#24',status:'완료',direction:'고객출하',reject:1,yld:'96.00'},
+    ];
+    document.getElementById('pm-preview').innerHTML=`<div class="parse-ok">✅ 데모 파싱 결과 — ${parseRows.length}건</div>
+      <table class="rec"><thead><tr><th>Lot ID</th><th>수량</th><th>Wafer No.</th><th>상태</th><th>처리방향</th><th>Reject</th><th>YLD%</th></tr></thead>
+      <tbody>${parseRows.map(r=>`<tr><td class="rec-mono">${r.lotId}</td><td>${r.qty}</td><td class="rec-mono">${r.waferNo}</td><td>${r.status}</td><td>${r.direction}</td><td>${r.reject}</td><td>${r.yld}%</td></tr>`).join('')}</tbody></table>`;
+    document.getElementById('pm-save-btn').style.display='inline-block';
+    return;
+  }
+  /* Basic text parsing - find lines with lot IDs and quantities */
+  const lines=text.split('\n').filter(l=>l.trim());
+  parseRows=lines.slice(0,5).map((l,i)=>({lotId:`LOT-PARSED-${String(i+1).padStart(3,'0')}`,qty:1,waferNo:`#${i+1}`,status:'완료',direction:'고객출하',reject:0,yld:'99.00'}));
+  document.getElementById('pm-preview').innerHTML=`<div class="parse-ok">✅ ${parseRows.length}건 파싱됨 (텍스트 기반 시뮬레이션)</div>`;
+  document.getElementById('pm-save-btn').style.display='inline-block';
+}
+
+function saveParse(){
+  if(!parseRows.length){alert('먼저 파싱을 실행하세요.');return;}
+  const rec={
+    id:nextId++,pid:selPid,step:'FAB',dir:'OUT',
+    ver:document.getElementById('pm-ver').value||'A',
+    date:document.getElementById('pm-date').value,
+    note:document.getElementById('pm-note').value,
+    lots:parseRows,
+  };
+  RECORDS.push(rec);
+  closeParse();
+  const p=PROJECTS.find(x=>x.id===selPid);
+  renderPanel(p);
+}
+
+/* click outside to close */
+['ov-manual','ov-excel','ov-parse'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',e=>{
+    if(e.target===e.currentTarget) document.getElementById(id).classList.remove('open');
+  });
+});
+
+renderSidebar();
+</script>
+</body>
+</html>

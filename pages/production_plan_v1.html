@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>생산계획목록 | 생산관리</title>
+<style>
+:root{
+  --bg:#F8F9FA;--surface:#fff;--border:#E0E3E8;
+  --text:#1A1D23;--text2:#5A6070;
+  --primary:#3B5BDB;--primary-h:#2F4AC4;
+  --mpw-bg:#FEF8F0;--mpw:#854F0B;
+  --pilot-bg:#F6F5FF;--pilot:#3C3489;
+  --prod-bg:#F3F9ED;--prod:#27500A;
+  --green:#2F9E44;--green-h:#267A35;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Apple SD Gothic Neo',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+a{color:inherit;text-decoration:none}
+
+/* ── NAV ── */
+.nav{background:#1A1D23;color:#fff;display:flex;align-items:center;padding:0 24px;height:48px;gap:4px}
+.nav-brand{font-weight:700;font-size:15px;margin-right:20px}
+.nav-item{padding:0 14px;height:48px;display:flex;align-items:center;font-size:13px;color:#9CA3AF;cursor:pointer;border-bottom:2px solid transparent;transition:.15s}
+.nav-item:hover{color:#fff}
+.nav-item.on{color:#fff;border-bottom-color:var(--primary)}
+
+/* ── LAYOUT ── */
+.page{padding:28px 24px;max-width:1440px;margin:0 auto}
+.page-hd{display:flex;align-items:baseline;gap:10px;margin-bottom:20px}
+.page-title{font-size:20px;font-weight:700}
+.page-sub{font-size:13px;color:var(--text2)}
+
+/* ── FILTER CARD ── */
+.filter-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 20px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.fl{display:flex;align-items:center;gap:8px}
+.fl-label{font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap}
+.vr{width:1px;height:22px;background:var(--border)}
+.radio-row{display:flex;gap:10px}
+.radio-row label{display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px}
+select,input[type=date],input[type=text],input[type=number]{
+  border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:13px;color:var(--text);background:#fff;outline:none
+}
+select:focus,input:focus{border-color:var(--primary)}
+.btn{padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:.15s}
+.btn-ghost{background:#fff;border:1px solid var(--border);color:var(--text)}
+.btn-ghost:hover{background:#f0f1f3}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-green{background:var(--green);color:#fff}
+.btn-green:hover{background:var(--green-h)}
+.btn-green:disabled{opacity:.35;cursor:not-allowed}
+
+/* ── SUMMARY ── */
+.summary-bar{display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:3px 11px;border-radius:20px;font-size:12px;font-weight:600}
+.chip-mpw{background:var(--mpw-bg);color:var(--mpw)}
+.chip-pilot{background:var(--pilot-bg);color:var(--pilot)}
+.chip-prod{background:var(--prod-bg);color:var(--prod)}
+.chip-cnt{font-weight:400;opacity:.75}
+.summary-right{margin-left:auto;font-size:12px;color:var(--text2)}
+
+/* ── TABLE ── */
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{background:#F3F5F8;padding:9px 12px;text-align:left;font-size:12px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap}
+th.r,td.r{text-align:right}
+tbody td{padding:9px 12px;border-bottom:1px solid #F0F2F5;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:#FAFBFC}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.b-mpw{background:var(--mpw-bg);color:var(--mpw)}
+.b-pilot{background:var(--pilot-bg);color:var(--pilot)}
+.b-prod{background:var(--prod-bg);color:var(--prod)}
+.mono{font-family:monospace;font-size:13px}
+.no-fab{color:var(--text2);font-size:12px;font-style:italic}
+.qty-inp{width:88px;text-align:right}
+.note-inp{width:140px}
+.saved-ok{color:var(--green);font-size:12px;margin-left:6px;opacity:0;transition:.3s}
+.saved-ok.show{opacity:1}
+.row-num{color:var(--text2);font-size:12px}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand">MJ 생산관리</span>
+  <a href="production_plan_v1.html"><span class="nav-item on">생산계획목록</span></a>
+  <a href="production_projectinfo_v1.html"><span class="nav-item">생산과제정보등록</span></a>
+  <a href="production_shipmentmanagement_v1.html"><span class="nav-item">입출하관리</span></a>
+</nav>
+
+<div class="page">
+  <div class="page-hd">
+    <span class="page-title">생산계획목록</span>
+    <span class="page-sub">FAB 시작수량 설정</span>
+  </div>
+
+  <div class="filter-card">
+    <div class="fl">
+      <span class="fl-label">기간 유형</span>
+      <div class="radio-row">
+        <label><input type="radio" name="ftype" value="year" checked onchange="toggleFType()"> 연도</label>
+        <label><input type="radio" name="ftype" value="range" onchange="toggleFType()"> 기간</label>
+      </div>
+    </div>
+    <div class="vr"></div>
+    <div id="blk-year" class="fl">
+      <span class="fl-label">연도</span>
+      <select id="f-year" onchange="render()">
+        <option>2024</option><option>2025</option><option selected>2026</option><option>2027</option>
+      </select>
+    </div>
+    <div id="blk-range" class="fl" style="display:none">
+      <span class="fl-label">시작일</span>
+      <input type="date" id="f-from" onchange="render()">
+      <span style="color:var(--text2);padding:0 2px">~</span>
+      <span class="fl-label">종료일</span>
+      <input type="date" id="f-to" onchange="render()">
+    </div>
+    <div class="vr"></div>
+    <div class="fl">
+      <span class="fl-label">고객사</span>
+      <select id="f-cust" onchange="render()"><option value="">전체</option></select>
+    </div>
+    <div class="fl">
+      <span class="fl-label">구분</span>
+      <select id="f-cls" onchange="render()">
+        <option value="">전체</option>
+        <option>MPW</option><option>Pilot Wafer</option><option>Production Wafer</option>
+      </select>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="resetFilter()">초기화</button>
+  </div>
+
+  <div class="summary-bar" id="summary-bar"></div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>고객사</th>
+          <th>과제명</th>
+          <th>AL Code</th>
+          <th>구분</th>
+          <th class="r">매출 수량</th>
+          <th>단위</th>
+          <th>등록일</th>
+          <th class="r">FAB Start Qty</th>
+          <th>메모</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const DRAFTS=[
+  {id:1,customer:'Samsung',name:'SI0136A',alCode:'BX4K72A',cls:'MPW',qty:40,unit:'EA',date:'2026-01-15',hasFab:true,fabStartQty:25,note:''},
+  {id:2,customer:'Samsung',name:'SI0136A',alCode:'BX4K72A',cls:'MPW',qty:20,unit:'EA',date:'2026-04-20',hasFab:true,fabStartQty:15,note:'추가발주'},
+  {id:3,customer:'SK Hynix',name:'ANA38413_N1C',alCode:'TR9M21A',cls:'Pilot Wafer',qty:2,unit:'PCS',date:'2026-02-10',hasFab:true,fabStartQty:2,note:''},
+  {id:4,customer:'SK Hynix',name:'ANA38413_N1C',alCode:'TR9M21A',cls:'Pilot Wafer',qty:3,unit:'PCS',date:'2026-03-05',hasFab:true,fabStartQty:null,note:'추가발주'},
+  {id:5,customer:'LG Electronics',name:'Ratel_N1C',alCode:'PJ2H67A',cls:'Production Wafer',qty:6,unit:'PCS',date:'2026-01-20',hasFab:true,fabStartQty:6,note:''},
+  {id:6,customer:'Samsung',name:'FALCON_N1B',alCode:'QN8L44A',cls:'Production Wafer',qty:75,unit:'PCS',date:'2025-11-10',hasFab:true,fabStartQty:50,note:''},
+  {id:7,customer:'LG Electronics',name:'Tachy-BS4_N1A',alCode:'HL6T38A',cls:'Production Wafer',qty:25,unit:'PCS',date:'2026-03-01',hasFab:true,fabStartQty:20,note:''},
+  {id:8,customer:'Nexperia',name:'UC60Plus_N1B',alCode:'MN3Q55A',cls:'Production Wafer',qty:100,unit:'PCS',date:'2026-04-15',hasFab:false,fabStartQty:null,note:'BUMP 시작'},
+];
+
+function badge(cls){
+  if(cls==='MPW') return '<span class="badge b-mpw">MPW</span>';
+  if(cls==='Pilot Wafer') return '<span class="badge b-pilot">Pilot</span>';
+  return '<span class="badge b-prod">Prod</span>';
+}
+
+function toggleFType(){
+  const v=document.querySelector('input[name=ftype]:checked').value;
+  document.getElementById('blk-year').style.display=v==='year'?'flex':'none';
+  document.getElementById('blk-range').style.display=v==='range'?'flex':'none';
+  render();
+}
+
+function getRows(){
+  const v=document.querySelector('input[name=ftype]:checked').value;
+  const yr=document.getElementById('f-year').value;
+  const from=document.getElementById('f-from').value;
+  const to=document.getElementById('f-to').value;
+  const cust=document.getElementById('f-cust').value;
+  const cls=document.getElementById('f-cls').value;
+  return DRAFTS.filter(d=>{
+    if(v==='year'&&!d.date.startsWith(yr)) return false;
+    if(v==='range'){
+      if(from&&d.date<from) return false;
+      if(to&&d.date>to) return false;
+    }
+    if(cust&&d.customer!==cust) return false;
+    if(cls&&d.cls!==cls) return false;
+    return true;
+  });
+}
+
+function render(){
+  const rows=getRows();
+  document.getElementById('tbody').innerHTML=rows.map((d,i)=>{
+    const fabCell=d.hasFab
+      ?`<input class="qty-inp" type="number" min="0" value="${d.fabStartQty??''}" placeholder="0" id="q-${d.id}">`
+      :`<span class="no-fab">입출하관리 등록</span>`;
+    return `<tr>
+      <td class="row-num">${i+1}</td>
+      <td>${d.customer}</td>
+      <td style="font-weight:500">${d.name}</td>
+      <td class="mono">${d.alCode}</td>
+      <td>${badge(d.cls)}</td>
+      <td class="r">${d.qty.toLocaleString()}</td>
+      <td style="color:var(--text2)">${d.unit}</td>
+      <td style="color:var(--text2);font-size:12px">${d.date}</td>
+      <td class="r">${fabCell}</td>
+      <td><input class="note-inp" type="text" value="${d.note}" placeholder="메모" id="n-${d.id}"></td>
+      <td style="white-space:nowrap">
+        ${d.hasFab?`<button class="btn btn-green btn-sm" onclick="save(${d.id})">저장</button>`:''}
+        <span class="saved-ok" id="ok-${d.id}">✓ 저장됨</span>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const mpw=rows.filter(d=>d.cls==='MPW').length;
+  const pilot=rows.filter(d=>d.cls==='Pilot Wafer').length;
+  const prod=rows.filter(d=>d.cls==='Production Wafer').length;
+  const done=rows.filter(d=>d.fabStartQty!=null&&d.fabStartQty>0).length;
+  document.getElementById('summary-bar').innerHTML=`
+    <span class="chip chip-mpw">MPW <span class="chip-cnt">${mpw}건</span></span>
+    <span class="chip chip-pilot">Pilot Wafer <span class="chip-cnt">${pilot}건</span></span>
+    <span class="chip chip-prod">Production Wafer <span class="chip-cnt">${prod}건</span></span>
+    <span class="summary-right">총 ${rows.length}건 &nbsp;·&nbsp; FAB Start Qty 설정 ${done}건</span>
+  `;
+}
+
+function save(id){
+  const d=DRAFTS.find(x=>x.id===id);
+  if(!d) return;
+  const qv=document.getElementById(`q-${id}`)?.value;
+  d.fabStartQty=qv===''||qv===undefined?null:Number(qv);
+  d.note=document.getElementById(`n-${id}`)?.value??d.note;
+  const ok=document.getElementById(`ok-${id}`);
+  if(ok){ok.classList.add('show');setTimeout(()=>ok.classList.remove('show'),2200);}
+}
+
+function resetFilter(){
+  document.querySelector('input[name=ftype][value=year]').checked=true;
+  document.getElementById('f-year').value='2026';
+  document.getElementById('f-from').value='';
+  document.getElementById('f-to').value='';
+  document.getElementById('f-cust').value='';
+  document.getElementById('f-cls').value='';
+  toggleFType();
+}
+
+function init(){
+  const sel=document.getElementById('f-cust');
+  [...new Set(DRAFTS.map(d=>d.customer))].sort().forEach(c=>{
+    const o=document.createElement('option');o.value=c;o.textContent=c;sel.appendChild(o);
+  });
+  render();
+}
+init();
+</script>
+</body>
+</html>

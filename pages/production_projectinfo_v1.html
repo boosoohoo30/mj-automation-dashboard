@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>생산과제정보등록 | 생산관리</title>
+<style>
+:root{
+  --bg:#F8F9FA;--surface:#fff;--border:#E0E3E8;
+  --text:#1A1D23;--text2:#5A6070;
+  --primary:#3B5BDB;--primary-h:#2F4AC4;
+  --mpw-bg:#FEF8F0;--mpw:#854F0B;
+  --pilot-bg:#F6F5FF;--pilot:#3C3489;
+  --prod-bg:#F3F9ED;--prod:#27500A;
+  --green:#2F9E44;--green-h:#267A35;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Apple SD Gothic Neo',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+a{color:inherit;text-decoration:none}
+
+.nav{background:#1A1D23;color:#fff;display:flex;align-items:center;padding:0 24px;height:48px;gap:4px}
+.nav-brand{font-weight:700;font-size:15px;margin-right:20px}
+.nav-item{padding:0 14px;height:48px;display:flex;align-items:center;font-size:13px;color:#9CA3AF;cursor:pointer;border-bottom:2px solid transparent;transition:.15s}
+.nav-item:hover{color:#fff}
+.nav-item.on{color:#fff;border-bottom-color:var(--primary)}
+
+.page{padding:28px 24px;max-width:1440px;margin:0 auto}
+.page-hd{display:flex;align-items:baseline;gap:10px;margin-bottom:20px}
+.page-title{font-size:20px;font-weight:700}
+.page-sub{font-size:13px;color:var(--text2)}
+
+/* metrics */
+.metrics{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.metric-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 18px;min-width:130px}
+.metric-label{font-size:11px;color:var(--text2);font-weight:600;margin-bottom:4px}
+.metric-val{font-size:22px;font-weight:700}
+.metric-sub{font-size:11px;color:var(--text2);margin-top:2px}
+.m-mpw .metric-val{color:var(--mpw)}
+.m-pilot .metric-val{color:var(--pilot)}
+.m-prod .metric-val{color:var(--prod)}
+
+/* table */
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{background:#F3F5F8;padding:9px 12px;text-align:left;font-size:12px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap}
+th.r,td.r{text-align:right}
+tbody td{padding:9px 12px;border-bottom:1px solid #F0F2F5;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:#FAFBFC}
+
+.grp-hd td{font-weight:700;font-size:12px;padding:7px 12px;border-bottom:1px solid var(--border)}
+.grp-hd.g-mpw td{background:var(--mpw-bg);color:var(--mpw)}
+.grp-hd.g-pilot td{background:var(--pilot-bg);color:var(--pilot)}
+.grp-hd.g-prod td{background:var(--prod-bg);color:var(--prod)}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.b-mpw{background:var(--mpw-bg);color:var(--mpw)}
+.b-pilot{background:var(--pilot-bg);color:var(--pilot)}
+.b-prod{background:var(--prod-bg);color:var(--prod)}
+.mono{font-family:monospace;font-size:13px}
+.ro{color:var(--text2)}
+
+/* scm flow pill */
+.flow-tag{display:inline-flex;align-items:center;gap:2px;flex-wrap:wrap;gap:3px}
+.step-pill{display:inline-block;padding:2px 7px;background:#EEF2FF;color:#3B5BDB;border-radius:4px;font-size:11px;font-weight:600}
+.arrow-s{color:#aaa;font-size:11px}
+
+.btn{padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:.15s}
+.btn-ghost{background:#fff;border:1px solid var(--border);color:var(--text)}
+.btn-ghost:hover{background:#f0f1f3}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-h)}
+.btn-green{background:var(--green);color:#fff}
+.btn-green:hover{background:var(--green-h)}
+.saved-ok{color:var(--green);font-size:12px;margin-left:6px;opacity:0;transition:.3s}
+.saved-ok.show{opacity:1}
+
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:100}
+.overlay.open{display:flex}
+.modal-box{background:#fff;border-radius:10px;width:560px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.modal-hd{padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-hd h3{font-size:16px;font-weight:700}
+.modal-hd .close{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text2)}
+.modal-body{padding:20px;overflow-y:auto;flex:1}
+.modal-ft{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+
+/* form inside modal */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.form-row.full{grid-template-columns:1fr}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:12px;font-weight:600;color:var(--text2)}
+.field input,.field select,.field textarea{
+  border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;color:var(--text);outline:none
+}
+.field input:focus,.field select:focus{border-color:var(--primary)}
+.field-ro{background:#F8F9FA!important;color:var(--text2)!important}
+
+/* scm flow selector in modal */
+.scm-selector{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px;background:#F8F9FA;border-radius:6px;border:1px solid var(--border)}
+.scm-step{display:flex;align-items:center;gap:4px;cursor:pointer}
+.scm-step input{cursor:pointer}
+.scm-step label{font-size:13px;cursor:pointer;font-weight:500}
+.scm-sep{color:#ccc;font-size:12px;user-select:none}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand">MJ 생산관리</span>
+  <a href="production_plan_v1.html"><span class="nav-item">생산계획목록</span></a>
+  <a href="production_projectinfo_v1.html"><span class="nav-item on">생산과제정보등록</span></a>
+  <a href="production_shipmentmanagement_v1.html"><span class="nav-item">입출하관리</span></a>
+</nav>
+
+<div class="page">
+  <div class="page-hd">
+    <span class="page-title">생산과제정보등록</span>
+    <span class="page-sub">FAB Start Qty 설정 완료 과제 · AL Code 기준 통합</span>
+  </div>
+
+  <div class="metrics" id="metrics"></div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>고객사</th>
+          <th>과제명</th>
+          <th>AL Code</th>
+          <th>구분</th>
+          <th class="r">총 Start Qty</th>
+          <th>TM Code</th>
+          <th>Net Die</th>
+          <th>SCM Flow</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="overlay" id="overlay">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <h3 id="modal-title">과제 정보 편집</h3>
+      <button class="close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="field">
+          <label>고객사</label>
+          <input id="m-customer" class="field-ro" readonly>
+        </div>
+        <div class="field">
+          <label>과제명</label>
+          <input id="m-name" class="field-ro" readonly>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>AL Code</label>
+          <input id="m-alcode" class="field-ro mono" readonly>
+        </div>
+        <div class="field">
+          <label>구분</label>
+          <input id="m-cls" class="field-ro" readonly>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>총 FAB Start Qty</label>
+          <input id="m-qty" class="field-ro" readonly>
+        </div>
+        <div class="field">
+          <label>매출 건수</label>
+          <input id="m-cnt" class="field-ro" readonly>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>TM Code <span style="color:var(--primary)">*편집가능</span></label>
+          <input id="m-tmcode" placeholder="예: TMWC09_C16">
+        </div>
+        <div class="field">
+          <label>Net Die</label>
+          <input id="m-netdie" placeholder="예: 850" type="number" min="0">
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="field">
+          <label>SCM Flow <span style="color:var(--primary)">*편집가능</span></label>
+          <div class="scm-selector" id="scm-selector"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveModal()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Data: from production_plan_v1 (AL Code 기준 집계) ── */
+const DRAFTS=[
+  {id:1,customer:'Samsung',name:'SI0136A',alCode:'BX4K72A',cls:'MPW',unit:'EA',fabStartQty:25},
+  {id:2,customer:'Samsung',name:'SI0136A',alCode:'BX4K72A',cls:'MPW',unit:'EA',fabStartQty:15},
+  {id:3,customer:'SK Hynix',name:'ANA38413_N1C',alCode:'TR9M21A',cls:'Pilot Wafer',unit:'PCS',fabStartQty:2},
+  {id:5,customer:'LG Electronics',name:'Ratel_N1C',alCode:'PJ2H67A',cls:'Production Wafer',unit:'PCS',fabStartQty:6},
+  {id:6,customer:'Samsung',name:'FALCON_N1B',alCode:'QN8L44A',cls:'Production Wafer',unit:'PCS',fabStartQty:50},
+  {id:7,customer:'LG Electronics',name:'Tachy-BS4_N1A',alCode:'HL6T38A',cls:'Production Wafer',unit:'PCS',fabStartQty:20},
+];
+
+/* AL Code 기준 통합 */
+const PROJ_INFO={};
+DRAFTS.forEach(d=>{
+  if(!PROJ_INFO[d.alCode]){
+    PROJ_INFO[d.alCode]={
+      alCode:d.alCode,customer:d.customer,name:d.name,cls:d.cls,unit:d.unit,
+      totalQty:0,draftCount:0,
+      tmCode:'',netDie:'',scmFlow:[],
+    };
+  }
+  PROJ_INFO[d.alCode].totalQty+=d.fabStartQty;
+  PROJ_INFO[d.alCode].draftCount++;
+});
+
+/* 초기 SCM Flow (데모) */
+PROJ_INFO['BX4K72A'].tmCode='TMWC09_C16'; PROJ_INFO['BX4K72A'].scmFlow=['FAB'];
+PROJ_INFO['TR9M21A'].tmCode='TMVZ07'; PROJ_INFO['TR9M21A'].netDie=850; PROJ_INFO['TR9M21A'].scmFlow=['FAB','CP'];
+PROJ_INFO['PJ2H67A'].tmCode='TMMQ65'; PROJ_INFO['PJ2H67A'].netDie=1200; PROJ_INFO['PJ2H67A'].scmFlow=['FAB','ASSEMBLY','FT'];
+PROJ_INFO['QN8L44A'].tmCode='TMSV86'; PROJ_INFO['QN8L44A'].scmFlow=['FAB'];
+PROJ_INFO['HL6T38A'].tmCode='TMUE69'; PROJ_INFO['HL6T38A'].netDie=620; PROJ_INFO['HL6T38A'].scmFlow=['FAB','FT'];
+
+const GROUPS=['MPW','Pilot Wafer','Production Wafer'];
+const GRP={
+  'MPW':{cls:'g-mpw',label:'MPW'},
+  'Pilot Wafer':{cls:'g-pilot',label:'Pilot Wafer'},
+  'Production Wafer':{cls:'g-prod',label:'Production Wafer'},
+};
+const ALL_STEPS=['FAB','BUMP','CP','ASSEMBLY','FT','DPS'];
+
+function flowHtml(flow){
+  if(!flow||!flow.length) return '<span style="color:#aaa;font-size:12px">미등록</span>';
+  return flow.map((s,i)=>`${i?'<span class="arrow-s">→</span>':''}<span class="step-pill">${s}</span>`).join('');
+}
+
+function render(){
+  const projects=Object.values(PROJ_INFO);
+  let seq=0;
+  const rows=[];
+  GROUPS.forEach(g=>{
+    const gp=projects.filter(p=>p.cls===g);
+    if(!gp.length) return;
+    const totalQty=gp.reduce((a,p)=>a+p.totalQty,0);
+    const unit=gp[0].unit;
+    rows.push(`<tr class="grp-hd ${GRP[g].cls}">
+      <td colspan="10">${GRP[g].label} &nbsp;·&nbsp; ${gp.length}건 &nbsp;·&nbsp; 합계 ${totalQty.toLocaleString()} ${unit}</td>
+    </tr>`);
+    gp.forEach(p=>{
+      seq++;
+      const tmDisp=p.tmCode||'<span style="color:#aaa">미입력</span>';
+      const ndDisp=p.netDie?p.netDie.toLocaleString():'<span style="color:#aaa">-</span>';
+      rows.push(`<tr>
+        <td class="ro" style="font-size:12px">${seq}</td>
+        <td>${p.customer}</td>
+        <td style="font-weight:500">${p.name}</td>
+        <td class="mono">${p.alCode}</td>
+        <td>${badgeCls(p.cls)}</td>
+        <td class="r"><strong>${p.totalQty.toLocaleString()}</strong> <span style="color:var(--text2);font-size:11px">${p.unit}</span>
+          <span style="color:var(--text2);font-size:10px;margin-left:4px">(${p.draftCount}건 합산)</span></td>
+        <td>${tmDisp}</td>
+        <td>${ndDisp}</td>
+        <td><div class="flow-tag">${flowHtml(p.scmFlow)}</div></td>
+        <td><button class="btn btn-ghost btn-sm" onclick="openModal('${p.alCode}')">편집</button>
+            <span class="saved-ok" id="ok-${p.alCode}">✓ 저장됨</span></td>
+      </tr>`);
+    });
+  });
+  document.getElementById('tbody').innerHTML=rows.join('');
+
+  /* metrics */
+  const mpw=projects.filter(p=>p.cls==='MPW').length;
+  const pilot=projects.filter(p=>p.cls==='Pilot Wafer').length;
+  const prod=projects.filter(p=>p.cls==='Production Wafer').length;
+  document.getElementById('metrics').innerHTML=`
+    <div class="metric-card m-mpw"><div class="metric-label">MPW</div><div class="metric-val">${mpw}</div><div class="metric-sub">과제</div></div>
+    <div class="metric-card m-pilot"><div class="metric-label">Pilot Wafer</div><div class="metric-val">${pilot}</div><div class="metric-sub">과제</div></div>
+    <div class="metric-card m-prod"><div class="metric-label">Production Wafer</div><div class="metric-val">${prod}</div><div class="metric-sub">과제</div></div>
+    <div class="metric-card"><div class="metric-label">전체</div><div class="metric-val">${projects.length}</div><div class="metric-sub">과제</div></div>
+  `;
+}
+
+function badgeCls(cls){
+  if(cls==='MPW') return '<span class="badge b-mpw">MPW</span>';
+  if(cls==='Pilot Wafer') return '<span class="badge b-pilot">Pilot</span>';
+  return '<span class="badge b-prod">Prod</span>';
+}
+
+let editingCode='';
+function openModal(alCode){
+  const p=PROJ_INFO[alCode];
+  if(!p) return;
+  editingCode=alCode;
+  document.getElementById('modal-title').textContent=`${p.name} — 정보 편집`;
+  document.getElementById('m-customer').value=p.customer;
+  document.getElementById('m-name').value=p.name;
+  document.getElementById('m-alcode').value=p.alCode;
+  document.getElementById('m-cls').value=p.cls;
+  document.getElementById('m-qty').value=`${p.totalQty.toLocaleString()} ${p.unit}`;
+  document.getElementById('m-cnt').value=`${p.draftCount}건`;
+  document.getElementById('m-tmcode').value=p.tmCode||'';
+  document.getElementById('m-netdie').value=p.netDie||'';
+
+  /* SCM flow checkboxes */
+  const sel=document.getElementById('scm-selector');
+  sel.innerHTML=ALL_STEPS.map((s,i)=>`
+    ${i?'<span class="scm-sep">→</span>':''}
+    <label class="scm-step">
+      <input type="checkbox" value="${s}" ${(p.scmFlow||[]).includes(s)?'checked':''}>
+      <span style="font-size:13px;font-weight:500">${s}</span>
+    </label>
+  `).join('');
+
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeModal(){
+  document.getElementById('overlay').classList.remove('open');
+  editingCode='';
+}
+
+function saveModal(){
+  if(!editingCode) return;
+  const p=PROJ_INFO[editingCode];
+  p.tmCode=document.getElementById('m-tmcode').value.trim();
+  const nd=document.getElementById('m-netdie').value;
+  p.netDie=nd?Number(nd):'';
+  p.scmFlow=ALL_STEPS.filter(s=>document.querySelector(`#scm-selector input[value="${s}"]`)?.checked);
+  closeModal();
+  render();
+  const ok=document.getElementById(`ok-${editingCode}`);
+  if(ok){ok.classList.add('show');setTimeout(()=>ok.classList.remove('show'),2200);}
+}
+
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+render();
+</script>
+</body>
+</html>
