@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>입출하관리 v2 | 생산관리</title>
+<style>
+:root{
+  --bg:#F0F2F5;--surface:#fff;--border:#E0E3E8;
+  --text:#1A1D23;--text2:#5A6070;
+  --primary:#3B5BDB;--primary-h:#2F4AC4;
+  --mpw-bg:#FEF8F0;--mpw:#854F0B;
+  --pilot-bg:#F6F5FF;--pilot:#3C3489;
+  --prod-bg:#F3F9ED;--prod:#27500A;
+  --green:#2F9E44;--red:#C92A2A;
+  --in-bg:#F0F7FF;--out-bg:#FFFDF0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Apple SD Gothic Neo',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+a{color:inherit;text-decoration:none}
+
+/* NAV */
+.nav{background:#1A1D23;color:#fff;display:flex;align-items:center;padding:0 24px;height:48px;gap:4px;flex-shrink:0}
+.nav-brand{font-weight:700;font-size:15px;margin-right:20px}
+.nav-item{padding:0 14px;height:48px;display:flex;align-items:center;font-size:13px;color:#9CA3AF;cursor:pointer;border-bottom:2px solid transparent}
+.nav-item:hover{color:#fff}
+.nav-item.on{color:#fff;border-bottom-color:var(--primary)}
+
+/* LAYOUT */
+.main{display:flex;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:250px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.sb-hd{padding:14px 16px 10px;border-bottom:1px solid var(--border)}
+.sb-hd h2{font-size:14px;font-weight:700;margin-bottom:8px}
+.sb-search{width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;outline:none}
+.sb-search:focus{border-color:var(--primary)}
+.sb-list{flex:1;overflow-y:auto;padding:8px 0}
+.sb-item{padding:9px 16px;cursor:pointer;border-left:3px solid transparent}
+.sb-item:hover{background:#F8F9FA}
+.sb-item.active{background:#EEF2FF;border-left-color:var(--primary)}
+.sb-name{font-size:13px;font-weight:600;margin-bottom:2px}
+.sb-meta{font-size:11px;color:var(--text2)}
+
+/* CONTENT */
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.no-proj{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:15px}
+
+/* PROJ BAR */
+.proj-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 20px;flex-shrink:0}
+.proj-name{font-size:17px;font-weight:700;margin-bottom:4px}
+.proj-meta{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text2)}
+.proj-meta strong{color:var(--text);font-weight:600}
+
+/* TABS */
+.tab-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;flex-shrink:0}
+.tab{padding:10px 18px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:var(--text2)}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+
+/* PANEL */
+.panel{flex:1;overflow-y:auto;padding:18px 20px}
+
+/* SECTION */
+.section{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;overflow:hidden}
+.sec-hd{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.sec-title{font-size:14px;font-weight:700;flex:1}
+
+/* RECORD TABLE */
+.rec-wrap{overflow-x:auto}
+.rec{width:100%;border-collapse:collapse;font-size:12px}
+.rec th{background:#F3F5F8;padding:7px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap}
+.rec td{padding:7px 10px;border-bottom:1px solid #F0F2F5;vertical-align:middle;white-space:nowrap}
+.rec tr:last-child td{border-bottom:none}
+
+/* IN / OUT row colors */
+.in-row td{background:var(--in-bg)}
+.out-row td{background:var(--out-bg);border-left:none}
+.out-row td:first-child{padding-left:20px;position:relative}
+.out-row td:first-child::before{content:"└ ";color:#bbb;font-size:13px}
+.rec tr.in-row:hover td{background:#E8F2FF}
+.rec tr.out-row:hover td{background:#FFFAE0}
+
+/* Type badges */
+.type-in{display:inline-block;padding:1px 7px;background:#DBEAFE;color:#1D4ED8;border-radius:4px;font-size:10px;font-weight:700}
+.type-out{display:inline-block;padding:1px 7px;background:#FEF3C7;color:#92400E;border-radius:4px;font-size:10px;font-weight:700}
+.rec-mono{font-family:monospace}
+.empty-row{padding:24px;text-align:center;color:var(--text2)}
+
+/* Status / direction */
+.st-pill{padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600}
+.st-진행중{background:#EEF2FF;color:#3B5BDB}
+.st-완료{background:#EBFBEE;color:#2F9E44}
+.st-scrap{background:#FFE3E3;color:#C92A2A}
+.dir-pill{padding:1px 7px;border-radius:10px;font-size:11px;background:#F3F5F8;color:#333}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.b-mpw{background:var(--mpw-bg);color:var(--mpw)}
+.b-pilot{background:var(--pilot-bg);color:var(--pilot)}
+.b-prod{background:var(--prod-bg);color:var(--prod)}
+
+/* BUTTONS */
+.btn{padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:500}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-xs{padding:2px 7px;font-size:11px}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-h)}
+.btn-ghost{background:#fff;border:1px solid var(--border);color:var(--text)}
+.btn-ghost:hover{background:#f0f0f0}
+.btn-danger{background:#fff;border:1px solid #fcc;color:var(--red)}
+.btn-danger:hover{background:#FFF5F5}
+.btn-out{background:#fff;border:1px solid #FDE68A;color:#92400E}
+.btn-out:hover{background:#FFFBEB}
+.actions{display:flex;gap:4px}
+
+/* ── MODALS ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;z-index:200;padding-top:60px;overflow-y:auto}
+.overlay.open{display:flex}
+.mbox{background:#fff;border-radius:10px;width:620px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.2);margin-bottom:20px}
+.mbox.wide{width:760px}
+.mhd{padding:15px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.mhd h3{font-size:15px;font-weight:700}
+.mclose{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text2)}
+.mbody{padding:18px 20px;overflow-y:auto;flex:1}
+.mft{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0}
+
+/* form helpers */
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.fg.cols3{grid-template-columns:1fr 1fr 1fr}
+.fg.cols4{grid-template-columns:1fr 1fr 1fr 1fr}
+.fg.full{grid-template-columns:1fr}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;font-weight:600;color:var(--text2)}
+.field input,.field select,.field textarea{
+  border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;color:var(--text);outline:none;background:#fff
+}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary)}
+.field-note{font-size:10px;color:var(--text2);margin-top:1px}
+.field-prefilled{background:#F8F9FA!important}
+
+/* Parse area */
+.parse-area{width:100%;height:110px;resize:vertical;font-family:monospace;font-size:12px}
+.parse-ok{color:var(--green);font-size:13px;font-weight:600;margin-bottom:8px}
+.upload-area{border:2px dashed var(--border);border-radius:8px;padding:24px;text-align:center;cursor:pointer;margin-bottom:10px}
+.upload-area:hover{border-color:var(--primary);background:#F8F9FF}
+.upload-title{font-size:14px;font-weight:500;margin-bottom:4px}
+.upload-sub{font-size:12px;color:var(--text2)}
+.upload-sub a{color:var(--primary);cursor:pointer;text-decoration:underline}
+
+/* section divider in modal */
+.msec{font-size:12px;font-weight:700;color:var(--text2);margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand">MJ 생산관리</span>
+  <a href="production_plan_v1.html"><span class="nav-item">생산계획목록</span></a>
+  <a href="production_projectinfo_v1.html"><span class="nav-item">생산과제정보등록</span></a>
+  <a href="production_shipmentmanagement_v2.html"><span class="nav-item on">입출하관리</span></a>
+</nav>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="sb-hd">
+      <h2>과제 목록</h2>
+      <input class="sb-search" placeholder="과제명·AL Code 검색" oninput="filterSb(this.value)">
+    </div>
+    <div class="sb-list" id="sb-list"></div>
+  </div>
+
+  <div class="content" id="content">
+    <div class="no-proj" id="no-proj">← 좌측 과제를 선택하세요</div>
+    <div id="proj-view" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div class="proj-bar">
+        <div class="proj-name" id="pv-name"></div>
+        <div class="proj-meta" id="pv-meta"></div>
+      </div>
+      <div class="tab-bar" id="tab-bar"></div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── FAB IN Modal ── -->
+<div class="overlay" id="ov-fab-in">
+  <div class="mbox">
+    <div class="mhd"><h3 id="fi-title">FAB IN 등록</h3><button class="mclose" onclick="closeModal('ov-fab-in')">✕</button></div>
+    <div class="mbody" id="fi-body"></div>
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal('ov-fab-in')">취소</button>
+      <button class="btn btn-primary" onclick="saveFabIn()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── FAB OUT Modal ── -->
+<div class="overlay" id="ov-fab-out">
+  <div class="mbox wide">
+    <div class="mhd"><h3 id="fo-title">FAB OUT 등록</h3><button class="mclose" onclick="closeModal('ov-fab-out')">✕</button></div>
+    <div class="mbody" id="fo-body"></div>
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal('ov-fab-out')">취소</button>
+      <button class="btn btn-primary" onclick="saveFabOut()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Post-FAB Lot Modal ── -->
+<div class="overlay" id="ov-lot">
+  <div class="mbox wide">
+    <div class="mhd"><h3 id="lot-title">Lot 등록</h3><button class="mclose" onclick="closeModal('ov-lot')">✕</button></div>
+    <div class="mbody" id="lot-body"></div>
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal('ov-lot')">취소</button>
+      <button class="btn btn-primary" onclick="saveLot()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Excel Modal ── -->
+<div class="overlay" id="ov-excel">
+  <div class="mbox">
+    <div class="mhd"><h3 id="xl-title">Excel 업로드</h3><button class="mclose" onclick="closeModal('ov-excel')">✕</button></div>
+    <div class="mbody" id="xl-body"></div>
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal('ov-excel')">취소</button>
+      <button class="btn btn-primary" id="xl-save-btn" style="display:none" onclick="saveExcel()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── PROJECTS ── */
+const PROJECTS=[
+  {id:0,customer:'Samsung',name:'SI0136A',alCode:'BX4K72A',cls:'MPW',qty:40,unit:'EA',tmCode:'TMWC09_C16',netDie:'',scmFlow:['FAB']},
+  {id:1,customer:'SK Hynix',name:'ANA38413_N1C',alCode:'TR9M21A',cls:'Pilot Wafer',qty:5,unit:'PCS',tmCode:'TMVZ07',netDie:'850',scmFlow:['FAB','CP']},
+  {id:2,customer:'LG Electronics',name:'Ratel_N1C',alCode:'PJ2H67A',cls:'Production Wafer',qty:6,unit:'PCS',tmCode:'TMMQ65',netDie:'1200',scmFlow:['FAB','ASSEMBLY','FT']},
+  {id:3,customer:'Samsung',name:'FALCON_N1B',alCode:'QN8L44A',cls:'Production Wafer',qty:50,unit:'PCS',tmCode:'TMSV86',netDie:'',scmFlow:['FAB']},
+  {id:4,customer:'LG Electronics',name:'Tachy-BS4_N1A',alCode:'HL6T38A',cls:'Production Wafer',qty:20,unit:'PCS',tmCode:'TMUE69',netDie:'620',scmFlow:['FAB','FT']},
+];
+
+/* ── RECORDS ── */
+let nextId=100;
+const RECORDS=[
+  /* MPW(SI0136A) FAB IN */
+  {id:1,pid:0,step:'FAB',dir:'IN',ver:'A',date:'2026-01-25',startQty:25,remark:'초도 투입'},
+  /* MPW FAB OUT — parentId:1 */
+  {id:2,pid:0,step:'FAB',dir:'OUT',parentId:1,ver:'A',date:'2026-03-12',lotId:'LOT-2601-001',qty:24,waferNo:'#1-24',status:'완료',direction:'고객출하',remark:''},
+  /* MPW second IN */
+  {id:3,pid:0,step:'FAB',dir:'IN',ver:'B',date:'2026-02-10',startQty:15,remark:'추가발주'},
+
+  /* Pilot(ANA38413) FAB IN */
+  {id:4,pid:1,step:'FAB',dir:'IN',ver:'A',date:'2026-02-20',lotId:'LOT-2602-001',qty:2,waferNo:'#1-2',status:'진행중',direction:'다음step',reject:0,yld:'',remark:''},
+  /* Pilot FAB OUT — parentId:4 */
+  {id:5,pid:1,step:'FAB',dir:'OUT',parentId:4,ver:'A',date:'2026-03-28',lotId:'LOT-2602-001',qty:2,waferNo:'#1-2',status:'완료',direction:'다음step',reject:0,yld:'99.50',remark:''},
+  /* Pilot CP Lot */
+  {id:6,pid:1,step:'CP',dir:'LOT',lotId:'LOT-2602-001',waferNo:'#1-2',
+   receiveDate:'2026-04-01',startDate:'2026-04-03',endDate:'2026-04-20',
+   inQtyPcs:2,inQtyEa:29800,outQtyPcs:2,outQtyEa:29350,reject:450,yld:'98.49',status:'완료',direction:'고객출하',remark:''},
+];
+
+/* ── STATE ── */
+let selPid=-1, selStep='', sbQuery='';
+let mCtx={};
+let excelRows=[];
+
+/* ── HELPERS ── */
+function isMPW(p){ return p.cls==='MPW'; }
+function clsBadge(cls){
+  if(cls==='MPW') return '<span class="badge b-mpw">MPW</span>';
+  if(cls==='Pilot Wafer') return '<span class="badge b-pilot">Pilot</span>';
+  return '<span class="badge b-prod">Prod</span>';
+}
+function stPill(s){ return s?`<span class="st-pill st-${s}">${s}</span>`:'—'; }
+function dirPill(d){ return d?`<span class="dir-pill">${d}</span>`:'—'; }
+function dash(v){ return (v!==undefined&&v!==null&&v!=='')? v : '—'; }
+
+/* ── SIDEBAR ── */
+function filterSb(q){ sbQuery=q; renderSidebar(); }
+function renderSidebar(){
+  const q=sbQuery.toLowerCase();
+  const list=PROJECTS.filter(p=>!q||p.name.toLowerCase().includes(q)||p.alCode.toLowerCase().includes(q));
+  document.getElementById('sb-list').innerHTML=list.map(p=>`
+    <div class="sb-item ${selPid===p.id?'active':''}" onclick="selectProj(${p.id})">
+      <div class="sb-name">${p.name} ${clsBadge(p.cls)}</div>
+      <div class="sb-meta">${p.alCode} · ${p.customer}</div>
+    </div>`).join('');
+}
+
+function selectProj(pid){
+  selPid=pid;
+  const p=PROJECTS.find(x=>x.id===pid);
+  renderSidebar();
+  document.getElementById('no-proj').style.display='none';
+  const pv=document.getElementById('proj-view');
+  pv.style.display='flex';
+  document.getElementById('pv-name').textContent=p.name;
+  document.getElementById('pv-meta').innerHTML=`
+    ${clsBadge(p.cls)}
+    <span><strong>AL Code</strong> <span style="font-family:monospace">${p.alCode}</span></span>
+    <span><strong>TM Code</strong> ${p.tmCode||'—'}</span>
+    <span><strong>Net Die</strong> ${p.netDie||'—'}</span>
+    <span><strong>고객사</strong> ${p.customer}</span>
+    <span><strong>총 Start Qty</strong> ${p.qty} ${p.unit}</span>`;
+  if(!p.scmFlow.includes(selStep)) selStep=p.scmFlow[0];
+  renderTabs(p); renderPanel(p);
+}
+
+function renderTabs(p){
+  document.getElementById('tab-bar').innerHTML=p.scmFlow.map(s=>
+    `<div class="tab ${selStep===s?'on':''}" onclick="selTab('${s}')">${s}</div>`).join('');
+}
+function selTab(s){ selStep=s; const p=PROJECTS.find(x=>x.id===selPid); renderTabs(p); renderPanel(p); }
+
+/* ── PANEL ── */
+function renderPanel(p){
+  document.getElementById('panel').innerHTML =
+    selStep==='FAB' ? buildFabSection(p) : buildLotSection(p, selStep);
+}
+
+/* ════════════════════════════════════
+   FAB SECTION — tree (IN → OUT)
+════════════════════════════════════ */
+function buildFabSection(p){
+  const mpw=isMPW(p);
+  const inRecs=RECORDS.filter(r=>r.pid===p.id&&r.step==='FAB'&&r.dir==='IN');
+
+  /* column headers */
+  const th = mpw
+    ? `<th>구분</th><th>Ver</th><th>날짜</th><th>투입수량 / Lot ID</th><th>Qty</th><th>Wafer No.</th><th>상태</th><th>처리방향</th><th>Remark</th><th></th>`
+    : `<th>구분</th><th>Ver</th><th>날짜</th><th>Lot ID</th><th>Qty</th><th>Wafer No.</th><th>상태</th><th>처리방향</th><th>Reject</th><th>YLD%</th><th>Remark</th><th></th>`;
+  const cols = mpw ? 10 : 12;
+
+  let rows='';
+  if(!inRecs.length){
+    rows=`<tr><td colspan="${cols}" class="empty-row">등록된 FAB 기록이 없습니다 — IN 추가 버튼으로 시작하세요</td></tr>`;
+  } else {
+    inRecs.forEach(inR=>{
+      rows += buildFabInRow(inR, mpw);
+      RECORDS.filter(r=>r.pid===p.id&&r.step==='FAB'&&r.dir==='OUT'&&r.parentId===inR.id)
+             .forEach(outR=>{ rows += buildFabOutRow(outR, mpw); });
+    });
+  }
+
+  return `<div class="section">
+    <div class="sec-hd">
+      <span class="sec-title">FAB 입출하 기록</span>
+      <div class="actions">
+        <button class="btn btn-primary btn-sm" onclick="openFabIn(${p.id})">+ IN 추가</button>
+      </div>
+    </div>
+    <div class="rec-wrap">
+      <table class="rec"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table>
+    </div>
+  </div>`;
+}
+
+function buildFabInRow(r, mpw){
+  const acts=`<div class="actions">
+    <button class="btn btn-xs btn-out" onclick="openFabOut(${r.id})">OUT 등록</button>
+    <button class="btn btn-xs btn-danger" onclick="delRec(${r.id})">삭제</button>
+  </div>`;
+  if(mpw){
+    return `<tr class="in-row">
+      <td><span class="type-in">IN</span></td>
+      <td>${r.ver}</td><td>${r.date}</td>
+      <td colspan="3" style="color:var(--text2)"><strong>${r.startQty}</strong> Wafers 투입</td>
+      <td>—</td><td>—</td>
+      <td>${r.remark||''}</td><td>${acts}</td>
+    </tr>`;
+  }
+  return `<tr class="in-row">
+    <td><span class="type-in">IN</span></td>
+    <td>${r.ver}</td><td>${r.date}</td>
+    <td class="rec-mono">${r.lotId||''}</td><td>${r.qty||''}</td><td class="rec-mono">${r.waferNo||''}</td>
+    <td>${stPill(r.status)}</td><td>${dirPill(r.direction)}</td>
+    <td>${dash(r.reject)}</td><td>${r.yld?r.yld+'%':'—'}</td>
+    <td>${r.remark||''}</td><td>${acts}</td>
+  </tr>`;
+}
+
+function buildFabOutRow(r, mpw){
+  const acts=`<button class="btn btn-xs btn-danger" onclick="delRec(${r.id})">삭제</button>`;
+  if(mpw){
+    return `<tr class="out-row">
+      <td><span class="type-out">OUT</span></td>
+      <td>${r.ver}</td><td>${r.date}</td>
+      <td class="rec-mono">${r.lotId||''}</td><td>${r.qty||''}</td><td class="rec-mono">${r.waferNo||''}</td>
+      <td>${stPill(r.status)}</td><td>${dirPill(r.direction)}</td>
+      <td>${r.remark||''}</td><td>${acts}</td>
+    </tr>`;
+  }
+  return `<tr class="out-row">
+    <td><span class="type-out">OUT</span></td>
+    <td>${r.ver}</td><td>${r.date}</td>
+    <td class="rec-mono">${r.lotId||''}</td><td>${r.qty||''}</td><td class="rec-mono">${r.waferNo||''}</td>
+    <td>${stPill(r.status)}</td><td>${dirPill(r.direction)}</td>
+    <td>${dash(r.reject)}</td><td>${r.yld?r.yld+'%':'—'}</td>
+    <td>${r.remark||''}</td><td>${acts}</td>
+  </tr>`;
+}
+
+/* ════════════════════════════════════
+   POST-FAB SECTION — unified lot rows
+════════════════════════════════════ */
+function buildLotSection(p, step){
+  const lots=RECORDS.filter(r=>r.pid===p.id&&r.step===step&&r.dir==='LOT');
+  const th=`<th>Lot ID</th><th>Wafer No.</th><th>입고일</th><th>시작일</th><th>종료일</th>
+    <th>In(PCS)</th><th>In(EA)</th><th>Out(PCS)</th><th>Out(EA)</th>
+    <th>Reject</th><th>YLD%</th><th>상태</th><th>처리방향</th><th>Remark</th><th></th>`;
+  const tbody=lots.length
+    ? lots.map(r=>`<tr>
+        <td class="rec-mono">${r.lotId}</td>
+        <td class="rec-mono">${r.waferNo}</td>
+        <td>${r.receiveDate||'—'}</td><td>${r.startDate||'—'}</td><td>${r.endDate||'—'}</td>
+        <td>${dash(r.inQtyPcs)}</td><td>${r.inQtyEa!=null?(+r.inQtyEa).toLocaleString():'—'}</td>
+        <td>${dash(r.outQtyPcs)}</td><td>${r.outQtyEa!=null?(+r.outQtyEa).toLocaleString():'—'}</td>
+        <td>${dash(r.reject)}</td><td>${r.yld?r.yld+'%':'—'}</td>
+        <td>${stPill(r.status)}</td><td>${dirPill(r.direction)}</td>
+        <td>${r.remark||''}</td>
+        <td><div class="actions">
+          <button class="btn btn-xs btn-ghost" onclick="openLotEdit(${r.id})">편집</button>
+          <button class="btn btn-xs btn-danger" onclick="delRec(${r.id})">삭제</button>
+        </div></td>
+      </tr>`).join('')
+    :`<tr><td colspan="15" class="empty-row">등록된 Lot 기록이 없습니다</td></tr>`;
+
+  return `<div class="section">
+    <div class="sec-hd">
+      <span class="sec-title">${step} Lot 기록</span>
+      <div class="actions">
+        <button class="btn btn-primary btn-sm" onclick="openLot(${p.id},'${step}',null)">+ Lot 추가</button>
+        <button class="btn btn-ghost btn-sm" onclick="openExcel(${p.id},'${step}')">Excel 업로드</button>
+      </div>
+    </div>
+    <div class="rec-wrap">
+      <table class="rec"><thead><tr>${th}</tr></thead><tbody>${tbody}</tbody></table>
+    </div>
+  </div>`;
+}
+
+/* ════════════════════════════════════
+   MODAL HELPERS
+════════════════════════════════════ */
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+['ov-fab-in','ov-fab-out','ov-lot','ov-excel'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',e=>{ if(e.target===e.currentTarget) closeModal(id); });
+});
+
+/* ── FAB IN ── */
+function openFabIn(pid){
+  const p=PROJECTS.find(x=>x.id===pid);
+  mCtx={type:'fab-in', pid, mpw:isMPW(p)};
+  document.getElementById('fi-title').textContent = isMPW(p) ? `FAB IN 등록 — MPW` : `FAB IN 등록`;
+  document.getElementById('fi-body').innerHTML = isMPW(p) ? `
+    <div class="fg cols3">
+      <div class="field"><label>Ver</label><input id="fi-ver" placeholder="A" style="width:80px"></div>
+      <div class="field"><label>날짜</label><input id="fi-date" type="date"></div>
+      <div class="field"><label>Start Qty (Wafer 수)</label><input id="fi-startqty" type="number" min="0" placeholder="25"></div>
+    </div>
+    <div class="fg full">
+      <div class="field"><label>Remark</label><input id="fi-remark" placeholder="Remark"></div>
+    </div>`
+  : `
+    <div class="fg">
+      <div class="field"><label>Ver</label><input id="fi-ver" placeholder="A"></div>
+      <div class="field"><label>날짜</label><input id="fi-date" type="date"></div>
+    </div>
+    <div class="fg">
+      <div class="field"><label>Lot ID</label><input id="fi-lotid" placeholder="LOT-XXXX" class="rec-mono"></div>
+      <div class="field"><label>Qty</label><input id="fi-qty" type="number" min="0"></div>
+    </div>
+    <div class="fg full">
+      <div class="field">
+        <label>Wafer No.</label>
+        <input id="fi-waferno" placeholder="#1-25 또는 #1,#3,#7 형태 입력">
+        <span class="field-note">#1-25 처럼 범위 표기로 여러 Wafer를 한 줄에 입력 가능</span>
+      </div>
+    </div>
+    <div class="fg">
+      <div class="field"><label>상태</label>
+        <select id="fi-status"><option>진행중</option><option>완료</option><option>scrap</option></select></div>
+      <div class="field"><label>처리방향</label>
+        <select id="fi-direction"><option>다음step</option><option>고객출하</option><option>보관</option><option>기타</option></select></div>
+    </div>
+    <div class="fg">
+      <div class="field"><label>Reject</label><input id="fi-reject" type="number" min="0"></div>
+      <div class="field"><label>YLD%</label><input id="fi-yld" placeholder="99.5"></div>
+    </div>
+    <div class="fg full">
+      <div class="field"><label>Remark</label><input id="fi-remark" placeholder="Remark"></div>
+    </div>`;
+  document.getElementById('ov-fab-in').classList.add('open');
+}
+
+function saveFabIn(){
+  const rec={id:nextId++,pid:mCtx.pid,step:'FAB',dir:'IN'};
+  rec.ver=v('fi-ver')||'A'; rec.date=v('fi-date'); rec.remark=v('fi-remark');
+  if(mCtx.mpw){
+    rec.startQty=Number(v('fi-startqty'))||0;
+  } else {
+    rec.lotId=v('fi-lotid'); rec.qty=Number(v('fi-qty'))||0;
+    rec.waferNo=v('fi-waferno'); rec.status=v('fi-status');
+    rec.direction=v('fi-direction'); rec.reject=v('fi-reject')?Number(v('fi-reject')):null;
+    rec.yld=v('fi-yld');
+  }
+  RECORDS.push(rec);
+  closeModal('ov-fab-in');
+  rerenderPanel();
+}
+
+/* ── FAB OUT ── */
+function openFabOut(parentInId){
+  const parentIn=RECORDS.find(r=>r.id===parentInId);
+  const p=PROJECTS.find(x=>x.id===parentIn.pid);
+  const mpw=isMPW(p);
+  mCtx={type:'fab-out', parentInId, pid:p.id, mpw};
+  document.getElementById('fo-title').textContent = mpw ? 'FAB OUT 등록 — 메모장 파싱' : 'FAB OUT 등록';
+
+  document.getElementById('fo-body').innerHTML = mpw ? `
+    <div class="fg cols3">
+      <div class="field">
+        <label>Ver <span class="field-note">(IN 연동)</span></label>
+        <input id="fo-ver" value="${parentIn.ver}" class="field-prefilled">
+      </div>
+      <div class="field"><label>날짜</label><input id="fo-date" type="date"></div>
+    </div>
+    <div class="msec">메모장 파싱 (파일 업로드 또는 텍스트 복붙)</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('fo-file').click()">📂 .txt 파일 업로드</button>
+      <input type="file" id="fo-file" accept=".txt,.log" style="display:none" onchange="loadParseFile(this)">
+    </div>
+    <div class="field" style="margin-bottom:8px">
+      <textarea class="parse-area" id="fo-text" placeholder="또는 Invoice 내용을 직접 붙여넣기..."></textarea>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="runParse()" style="margin-bottom:12px">파싱 실행</button>
+    <div id="fo-parse-result"></div>
+    <div class="msec">출하 정보 입력</div>
+    <div class="fg">
+      <div class="field"><label>Lot ID <span class="field-note">(파싱 후 자동입력)</span></label><input id="fo-lotid" class="rec-mono"></div>
+      <div class="field"><label>Qty</label><input id="fo-qty" type="number" min="0"></div>
+    </div>
+    <div class="fg full">
+      <div class="field">
+        <label>Wafer No.</label>
+        <input id="fo-waferno" placeholder="#1-24 또는 #1-24,#26 형태">
+      </div>
+    </div>
+    <div class="fg">
+      <div class="field"><label>상태</label>
+        <select id="fo-status"><option>진행중</option><option>완료</option><option>scrap</option></select></div>
+      <div class="field"><label>처리방향</label>
+        <select id="fo-direction"><option>다음step</option><option>고객출하</option><option>보관</option><option>기타</option></select></div>
+    </div>
+    <div class="fg full">
+      <div class="field"><label>Remark</label><input id="fo-remark" placeholder="Remark"></div>
+    </div>`
+  : `
+    <div class="fg">
+      <div class="field">
+        <label>Ver <span class="field-note">(IN 연동)</span></label>
+        <input id="fo-ver" value="${parentIn.ver}" class="field-prefilled">
+      </div>
+      <div class="field"><label>날짜</label><input id="fo-date" type="date"></div>
+    </div>
+    <div class="fg">
+      <div class="field">
+        <label>Lot ID <span class="field-note">(IN 연동)</span></label>
+        <input id="fo-lotid" value="${parentIn.lotId||''}" class="rec-mono field-prefilled">
+      </div>
+      <div class="field"><label>Qty</label><input id="fo-qty" type="number" min="0" value="${parentIn.qty||''}"></div>
+    </div>
+    <div class="fg full">
+      <div class="field">
+        <label>Wafer No.</label>
+        <input id="fo-waferno" placeholder="#1-25 또는 #1,#3,#7">
+        <span class="field-note">#1-25 처럼 범위 표기로 여러 Wafer를 한 줄에 입력 가능</span>
+      </div>
+    </div>
+    <div class="fg">
+      <div class="field"><label>상태</label>
+        <select id="fo-status"><option>진행중</option><option>완료</option><option>scrap</option></select></div>
+      <div class="field"><label>처리방향</label>
+        <select id="fo-direction"><option>다음step</option><option>고객출하</option><option>보관</option><option>기타</option></select></div>
+    </div>
+    <div class="fg">
+      <div class="field"><label>Reject</label><input id="fo-reject" type="number" min="0"></div>
+      <div class="field"><label>YLD%</label><input id="fo-yld" placeholder="99.5"></div>
+    </div>
+    <div class="fg full">
+      <div class="field"><label>Remark</label><input id="fo-remark" placeholder="Remark"></div>
+    </div>`;
+  document.getElementById('ov-fab-out').classList.add('open');
+}
+
+function loadParseFile(input){
+  const file=input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{ document.getElementById('fo-text').value=e.target.result; runParse(); };
+  reader.readAsText(file);
+}
+
+function runParse(){
+  const text=(document.getElementById('fo-text')?.value||'').trim();
+  let lotId='', qty='';
+  if(text){
+    /* simple extraction: find LOT-XXXX pattern and first number */
+    const lotMatch=text.match(/LOT[-_]\S+/i);
+    if(lotMatch) lotId=lotMatch[0];
+    const qtyMatch=text.match(/qty[:\s]+(\d+)/i)||text.match(/(\d+)\s*wafer/i)||text.match(/(\d+)/);
+    if(qtyMatch) qty=qtyMatch[1];
+    document.getElementById('fo-parse-result').innerHTML=`<div class="parse-ok">✅ 파싱 완료 — Lot: ${lotId||'감지 안됨'}, Qty: ${qty||'감지 안됨'}</div>`;
+  } else {
+    /* demo */
+    lotId='LOT-2601-001'; qty='24';
+    document.getElementById('fo-parse-result').innerHTML=`<div class="parse-ok">✅ 데모 파싱 결과 — Lot: ${lotId}, Qty: ${qty}</div>`;
+  }
+  if(document.getElementById('fo-lotid')) document.getElementById('fo-lotid').value=lotId;
+  if(document.getElementById('fo-qty')) document.getElementById('fo-qty').value=qty;
+}
+
+function saveFabOut(){
+  const rec={id:nextId++,pid:mCtx.pid,step:'FAB',dir:'OUT',parentId:mCtx.parentInId};
+  rec.ver=v('fo-ver'); rec.date=v('fo-date'); rec.lotId=v('fo-lotid');
+  rec.qty=Number(v('fo-qty'))||0; rec.waferNo=v('fo-waferno');
+  rec.status=v('fo-status'); rec.direction=v('fo-direction');
+  rec.remark=v('fo-remark');
+  if(!mCtx.mpw){
+    rec.reject=v('fo-reject')?Number(v('fo-reject')):null;
+    rec.yld=v('fo-yld');
+  }
+  if(!rec.date){alert('날짜를 입력해주세요.');return;}
+  RECORDS.push(rec);
+  closeModal('ov-fab-out');
+  rerenderPanel();
+}
+
+/* ── POST-FAB LOT ── */
+let editLotId=null;
+function openLot(pid, step, id){
+  editLotId=id;
+  mCtx={type:'lot', pid, step};
+  document.getElementById('lot-title').textContent=`${step} Lot ${id?'편집':'등록'}`;
+  const r=id?RECORDS.find(x=>x.id===id):{};
+  document.getElementById('lot-body').innerHTML=`
+    <div class="fg">
+      <div class="field"><label>Lot ID</label><input id="l-lotid" class="rec-mono" value="${r.lotId||''}" placeholder="LOT-XXXX"></div>
+      <div class="field">
+        <label>Wafer No.</label>
+        <input id="l-waferno" value="${r.waferNo||''}" placeholder="#1-3 또는 #1,#2,#3">
+        <span class="field-note">범위 표기 가능 (#1-3)</span>
+      </div>
+    </div>
+    <div class="msec">입고 정보</div>
+    <div class="fg cols3">
+      <div class="field"><label>입고일</label><input id="l-receive" type="date" value="${r.receiveDate||''}"></div>
+      <div class="field"><label>시작일</label><input id="l-start" type="date" value="${r.startDate||''}"></div>
+      <div class="field"><label>종료일</label><input id="l-end" type="date" value="${r.endDate||''}"></div>
+    </div>
+    <div class="fg cols4">
+      <div class="field"><label>In Qty (PCS)</label><input id="l-inpcs" type="number" min="0" value="${r.inQtyPcs??''}"></div>
+      <div class="field"><label>In Qty (EA)</label><input id="l-inea" type="number" min="0" value="${r.inQtyEa??''}"></div>
+      <div class="field"><label>Out Qty (PCS)</label><input id="l-outpcs" type="number" min="0" value="${r.outQtyPcs??''}"></div>
+      <div class="field"><label>Out Qty (EA)</label><input id="l-outea" type="number" min="0" value="${r.outQtyEa??''}"></div>
+    </div>
+    <div class="fg cols3">
+      <div class="field"><label>Reject</label><input id="l-reject" type="number" min="0" value="${r.reject??''}"></div>
+      <div class="field"><label>YLD (%)</label><input id="l-yld" placeholder="98.5" value="${r.yld||''}"></div>
+      <div class="field"></div>
+    </div>
+    <div class="fg">
+      <div class="field"><label>상태</label>
+        <select id="l-status">
+          ${['진행중','완료','scrap'].map(o=>`<option ${r.status===o?'selected':''}>${o}</option>`).join('')}
+        </select></div>
+      <div class="field"><label>처리방향</label>
+        <select id="l-direction">
+          ${['다음step','고객출하','보관','기타'].map(o=>`<option ${r.direction===o?'selected':''}>${o}</option>`).join('')}
+        </select></div>
+    </div>
+    <div class="fg full">
+      <div class="field"><label>Remark</label><input id="l-remark" value="${r.remark||''}" placeholder="Remark"></div>
+    </div>`;
+  document.getElementById('ov-lot').classList.add('open');
+}
+function openLotEdit(id){ const r=RECORDS.find(x=>x.id===id); openLot(r.pid,r.step,id); }
+
+function saveLot(){
+  const rec={
+    step:mCtx.step, dir:'LOT', pid:mCtx.pid,
+    lotId:v('l-lotid'), waferNo:v('l-waferno'),
+    receiveDate:v('l-receive'), startDate:v('l-start'), endDate:v('l-end'),
+    inQtyPcs:num('l-inpcs'), inQtyEa:num('l-inea'),
+    outQtyPcs:num('l-outpcs'), outQtyEa:num('l-outea'),
+    reject:num('l-reject'), yld:v('l-yld'),
+    status:v('l-status'), direction:v('l-direction'), remark:v('l-remark'),
+  };
+  if(!rec.lotId){alert('Lot ID를 입력해주세요.');return;}
+  if(editLotId){
+    const i=RECORDS.findIndex(x=>x.id===editLotId);
+    if(i>=0) RECORDS[i]={...RECORDS[i],...rec};
+  } else {
+    rec.id=nextId++; RECORDS.push(rec);
+  }
+  closeModal('ov-lot');
+  rerenderPanel();
+}
+
+/* ── EXCEL ── */
+function openExcel(pid, step){
+  mCtx={type:'excel', pid, step};
+  excelRows=[];
+  document.getElementById('xl-title').textContent=`${step} Excel 업로드`;
+  document.getElementById('xl-save-btn').style.display='none';
+  document.getElementById('xl-body').innerHTML=`
+    <div class="upload-area" onclick="document.getElementById('xl-file').click()">
+      <input type="file" id="xl-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleExcel(this)">
+      <div class="upload-title">📂 파일 선택 또는 드래그</div>
+      <div class="upload-sub">.xlsx / .xls / .csv &nbsp;|&nbsp; <a onclick="demoExcel(event)">데모 데이터 로드</a></div>
+    </div>
+    <div id="xl-preview"></div>`;
+  document.getElementById('ov-excel').classList.add('open');
+}
+
+function handleExcel(input){ if(input.files[0]) demoExcel(null); }
+
+function demoExcel(e){
+  if(e) e.preventDefault();
+  excelRows=[
+    {lotId:'LOT-DEMO-001',waferNo:'#1-3',receiveDate:'2026-05-01',startDate:'2026-05-03',endDate:'2026-05-20',
+     inQtyPcs:3,inQtyEa:45000,outQtyPcs:3,outQtyEa:44350,reject:650,yld:'98.56',status:'완료',direction:'고객출하'},
+    {lotId:'LOT-DEMO-002',waferNo:'#4-6',receiveDate:'2026-05-01',startDate:'2026-05-03',endDate:'',
+     inQtyPcs:3,inQtyEa:45000,outQtyPcs:null,outQtyEa:null,reject:null,yld:'',status:'진행중',direction:'다음step'},
+  ];
+  const rows=excelRows.map((r,i)=>`<tr>
+    <td>${i+1}</td><td class="rec-mono">${r.lotId}</td><td class="rec-mono">${r.waferNo}</td>
+    <td>${r.receiveDate}</td><td>${r.startDate}</td><td>${r.endDate||'—'}</td>
+    <td>${r.inQtyPcs}</td><td>${r.inQtyEa?.toLocaleString()}</td>
+    <td>${r.outQtyPcs??'—'}</td><td>${r.outQtyEa?.toLocaleString()??'—'}</td>
+    <td>${r.reject??'—'}</td><td>${r.yld?r.yld+'%':'—'}</td>
+    <td>${r.status}</td><td>${r.direction}</td>
+  </tr>`).join('');
+  document.getElementById('xl-preview').innerHTML=`
+    <div class="parse-ok" style="margin-bottom:8px">✅ ${excelRows.length}건 로드됨</div>
+    <div style="overflow-x:auto"><table class="rec">
+      <thead><tr><th>#</th><th>Lot ID</th><th>Wafer No.</th><th>입고일</th><th>시작일</th><th>종료일</th>
+        <th>In(PCS)</th><th>In(EA)</th><th>Out(PCS)</th><th>Out(EA)</th>
+        <th>Reject</th><th>YLD%</th><th>상태</th><th>처리방향</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  document.getElementById('xl-save-btn').style.display='inline-block';
+}
+
+function saveExcel(){
+  excelRows.forEach(r=>{ RECORDS.push({id:nextId++,pid:mCtx.pid,step:mCtx.step,dir:'LOT',...r}); });
+  closeModal('ov-excel');
+  rerenderPanel();
+}
+
+/* ── UTILS ── */
+function v(id){ return document.getElementById(id)?.value??''; }
+function num(id){ const x=v(id); return x===''?null:Number(x); }
+function delRec(id){ RECORDS.splice(RECORDS.findIndex(r=>r.id===id),1); rerenderPanel(); }
+function rerenderPanel(){ const p=PROJECTS.find(x=>x.id===selPid); if(p) renderPanel(p); }
+
+/* ── INIT ── */
+renderSidebar();
+</script>
+</body>
+</html>
