@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>입출하관리 | MJ 생산관리</title>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#F0F2F5;--sur:#fff;--bdr:#E0E3E8;
+  --tx:#1A1D23;--tx2:#5A6070;
+  --pri:#3B5BDB;--prih:#2F4AC4;
+  --grn:#2F9E44;--red:#C92A2A;--amb:#D97700;
+  --in-bg:#F0F7FF;--out-bg:#FFFDF0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Apple SD Gothic Neo',system-ui,sans-serif;background:var(--bg);color:var(--tx);font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+/* NAV */
+.nav{background:#1A1D23;color:#fff;display:flex;align-items:center;padding:0 20px;height:46px;gap:0;flex-shrink:0}
+.nav-brand{font-weight:700;font-size:14px;margin-right:24px;white-space:nowrap}
+.nav-lnk{padding:0 14px;height:46px;display:flex;align-items:center;font-size:13px;color:#9CA3AF;cursor:pointer;border-bottom:2px solid transparent;text-decoration:none}
+.nav-lnk:hover{color:#fff}
+.nav-lnk.on{color:#fff;border-bottom-color:var(--pri)}
+/* LAYOUT */
+.body{display:flex;flex:1;overflow:hidden}
+.sb{width:240px;background:var(--sur);border-right:1px solid var(--bdr);display:flex;flex-direction:column;flex-shrink:0}
+.sb-hd{padding:12px 14px 8px;border-bottom:1px solid var(--bdr)}
+.sb-hd h2{font-size:13px;font-weight:700;margin-bottom:6px}
+.sb-q{width:100%;border:1px solid var(--bdr);border-radius:6px;padding:5px 9px;font-size:12px;outline:none}
+.sb-q:focus{border-color:var(--pri)}
+.sb-list{flex:1;overflow-y:auto;padding:6px 0}
+.sb-item{padding:8px 14px;cursor:pointer;border-left:3px solid transparent}
+.sb-item:hover{background:#F8F9FA}
+.sb-item.on{background:#EEF2FF;border-left-color:var(--pri)}
+.sb-name{font-size:12px;font-weight:600;margin-bottom:2px}
+.sb-meta{font-size:11px;color:var(--tx2)}
+/* CONTENT */
+.ct{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.empty-ct{flex:1;display:flex;align-items:center;justify-content:center;color:var(--tx2);font-size:14px}
+.pv{display:none;flex-direction:column;flex:1;overflow:hidden}
+.pv.show{display:flex}
+.pv-bar{background:var(--sur);border-bottom:1px solid var(--bdr);padding:10px 18px;flex-shrink:0}
+.pv-name{font-size:16px;font-weight:700;margin-bottom:4px}
+.pv-meta{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--tx2)}
+.pv-meta strong{color:var(--tx);font-weight:600}
+.tabs{background:var(--sur);border-bottom:1px solid var(--bdr);padding:0 18px;display:flex;flex-shrink:0}
+.tab{padding:9px 16px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:var(--tx2)}
+.tab:hover{color:var(--tx)}
+.tab.on{color:var(--pri);border-bottom-color:var(--pri);font-weight:600}
+.panel{flex:1;overflow-y:auto;padding:16px 18px}
+/* SECTION */
+.sec{background:var(--sur);border:1px solid var(--bdr);border-radius:8px;margin-bottom:14px;overflow:hidden}
+.sec-hd{padding:10px 14px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:8px}
+.sec-title{font-size:13px;font-weight:700;flex:1}
+.tw{overflow-x:auto}
+/* TABLE */
+table.rt{width:100%;border-collapse:collapse;font-size:11px}
+table.rt th{background:#F3F5F8;padding:6px 9px;text-align:left;font-weight:600;color:var(--tx2);border-bottom:1px solid var(--bdr);white-space:nowrap}
+table.rt td{padding:6px 9px;border-bottom:1px solid #F0F2F5;vertical-align:middle}
+table.rt tr:last-child td{border-bottom:none}
+.in-row td{background:var(--in-bg)}
+.in-row.done td{background:#F0FDF4}
+.out-row td{background:var(--out-bg)}
+.out-row td:first-child{padding-left:20px;position:relative}
+.out-row td:first-child::before{content:"└ ";color:#ccc}
+.lot-row td{background:#FAFBFF}
+.lot-row:hover td{background:#EEF2FF}
+.lot-detail-row td{background:#F6F7FA;padding:0}
+.lot-detail-row.hidden{display:none}
+.lot-wo-inner{padding:8px 12px 12px 28px}
+table.wo-tbl{width:100%;border-collapse:collapse;font-size:11px;border:1px solid var(--bdr);overflow:hidden}
+table.wo-tbl th{background:#EEF2FF;padding:4px 7px;font-size:10px;font-weight:600;color:var(--pri);border-bottom:1px solid #C7D2FE;text-align:left}
+table.wo-tbl td{padding:4px 7px;border-bottom:1px solid #F0F2F5}
+table.wo-tbl tr:last-child td{border-bottom:none}
+table.wo-tbl tr.scrap td{background:#FFF5F5;color:var(--red)}
+/* PILLS / BADGES */
+.tin{display:inline-block;padding:1px 6px;background:#DBEAFE;color:#1D4ED8;border-radius:4px;font-size:10px;font-weight:700}
+.tout{display:inline-block;padding:1px 6px;background:#FEF3C7;color:#92400E;border-radius:4px;font-size:10px;font-weight:700}
+.tlot{display:inline-block;padding:1px 6px;background:#E9D8FD;color:#6B21A8;border-radius:4px;font-size:10px;font-weight:700}
+.mono{font-family:monospace}
+.emp{padding:20px;text-align:center;color:var(--tx2)}
+.stp{padding:1px 6px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap}
+.stp.진행중{background:#EEF2FF;color:#3B5BDB}
+.stp.완료{background:#EBFBEE;color:#2F9E44}
+.stp.scrap{background:#FFE3E3;color:#C92A2A}
+.drp{padding:1px 6px;border-radius:10px;font-size:11px;background:#F3F5F8;color:#333;white-space:nowrap}
+.drp.고객출하{background:#E6FCF5;color:#0CA678}
+.drp.보관{background:#FFF4E6;color:#D9480F}
+.drp.scrap{background:#FFE3E3;color:#C92A2A}
+.bdg{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600}
+.bdg.mpw{background:#FEF8F0;color:#854F0B}
+.bdg.pilot{background:#F6F5FF;color:#3C3489}
+.bdg.prod{background:#F3F9ED;color:#27500A}
+.bdg-rem{display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:#FFFBEB;color:#92400E;border:1px solid #FDE68A}
+.bdg-done{display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700;background:#D1FAE5;color:#065F46}
+.bdg-wait{display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:#DBEAFE;color:#1D4ED8}
+/* BUTTONS */
+.btn{padding:5px 12px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:500;line-height:1.4}
+.btn.sm{padding:3px 8px;font-size:11px}
+.btn.xs{padding:2px 6px;font-size:10px}
+.btn.pri{background:var(--pri);color:#fff}
+.btn.pri:hover{background:var(--prih)}
+.btn.ghost{background:#fff;border:1px solid var(--bdr);color:var(--tx)}
+.btn.ghost:hover{background:#f0f0f0}
+.btn.danger{background:#fff;border:1px solid #fcc;color:var(--red)}
+.btn.danger:hover{background:#FFF5F5}
+.btn.out{background:#fff;border:1px solid #FDE68A;color:#92400E}
+.btn.out:hover{background:#FFFBEB}
+.btn.edit{background:#fff;border:1px solid #C7D2FE;color:#3730A3}
+.btn.edit:hover{background:#EEF2FF}
+.acts{display:flex;gap:3px;flex-wrap:nowrap}
+/* MODAL */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;z-index:200;padding-top:36px;overflow-y:auto}
+.ov.open{display:flex}
+.mbox{background:#fff;border-radius:10px;width:640px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.2);margin-bottom:20px}
+.mbox.wide{width:820px}
+.mbox.xl{width:960px}
+.mhd{padding:14px 18px 10px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.mhd h3{font-size:14px;font-weight:700}
+.mclose{background:none;border:none;font-size:17px;cursor:pointer;color:var(--tx2)}
+.mbody{padding:16px 18px;overflow-y:auto;flex:1}
+.mft{padding:10px 18px;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.fg.c3{grid-template-columns:1fr 1fr 1fr}
+.fg.c4{grid-template-columns:1fr 1fr 1fr 1fr}
+.fg.c1{grid-template-columns:1fr}
+.fld{display:flex;flex-direction:column;gap:3px}
+.fld label{font-size:11px;font-weight:600;color:var(--tx2)}
+.fld input,.fld select,.fld textarea{border:1px solid var(--bdr);border-radius:6px;padding:6px 9px;font-size:12px;color:var(--tx);outline:none;background:#fff;width:100%}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--pri)}
+.fn{font-size:10px;color:var(--tx2);margin-top:2px}
+.fpre{background:#F8F9FA!important;color:var(--tx2)!important}
+.msec{font-size:11px;font-weight:700;color:var(--tx2);margin:12px 0 7px;padding-bottom:3px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between}
+/* WAFER POOL */
+.wp{padding:9px 11px;background:#F8F9FA;border:1px solid var(--bdr);border-radius:6px;margin-bottom:10px}
+.wp-hd{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--tx2);margin-bottom:5px}
+.wp-chips{display:flex;flex-wrap:wrap;gap:3px}
+.wc{display:inline-block;padding:2px 7px;border-radius:4px;font-family:monospace;font-size:10px;background:#fff;border:1px solid var(--bdr);min-width:36px;text-align:center}
+.wc.used{background:#FEE2E2;color:#991B1B;border-color:#FCA5A5;text-decoration:line-through;opacity:.6}
+.wc.d0{background:#DBEAFE;color:#1D4ED8;border-color:#93C5FD}
+.wc.d1{background:#D1FAE5;color:#065F46;border-color:#6EE7B7}
+.wc.d2{background:#FEF3C7;color:#92400E;border-color:#FCD34D}
+.wc.d3{background:#FCE7F3;color:#9D174D;border-color:#F9A8D4}
+.wc.d4{background:#E0E7FF;color:#3730A3;border-color:#A5B4FC}
+/* DIST BLOCK */
+.dblk{border:1px solid var(--bdr);border-radius:7px;padding:12px;margin-bottom:8px;background:#fff;border-left-width:4px}
+.dblk.d0{border-left-color:#1D4ED8}
+.dblk.d1{border-left-color:#065F46}
+.dblk.d2{border-left-color:#92400E}
+.dblk.d3{border-left-color:#9D174D}
+.dblk.d4{border-left-color:#3730A3}
+/* WO GRID */
+table.wo-grid{width:100%;border-collapse:collapse;font-size:11px;border:1px solid var(--bdr);overflow:hidden;margin-bottom:8px}
+table.wo-grid th{background:#F3F5F8;padding:5px 7px;font-size:10px;font-weight:600;color:var(--tx2);border-bottom:1px solid var(--bdr);text-align:left;white-space:nowrap}
+table.wo-grid td{padding:3px 5px;border-bottom:1px solid #F0F2F5;vertical-align:middle}
+table.wo-grid tr:last-child td{border-bottom:none}
+table.wo-grid tr.is-scrap td{background:#FFF5F5}
+table.wo-grid input[type=number],table.wo-grid input[type=text]{border:1px solid var(--bdr);border-radius:4px;padding:3px 5px;font-size:11px;width:100%;outline:none}
+table.wo-grid input:focus{border-color:var(--pri)}
+table.wo-grid input:disabled{background:#F8F9FA;color:var(--tx2)}
+.wo-sum{background:#EEF2FF;border:1px solid #C7D2FE;border-radius:6px;padding:7px 10px;font-size:11px;margin-bottom:8px}
+.wo-sum-row{display:flex;gap:14px;flex-wrap:wrap}
+.wo-sum-lbl{color:var(--tx2)}
+.wo-sum-val{font-weight:700;color:var(--tx)}
+/* LOT ID GUIDE */
+.lid-guide{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.lid-chip{padding:2px 8px;border-radius:10px;font-size:11px;font-family:monospace;background:#EEF2FF;color:var(--pri);border:1px solid #C7D2FE;cursor:pointer}
+.lid-chip:hover{background:#C7D2FE}
+/* PARSE */
+.pa{width:100%;height:100px;resize:vertical;font-family:monospace;font-size:11px;border:1px solid var(--bdr);border-radius:6px;padding:7px;outline:none}
+.pa:focus{border-color:var(--pri)}
+.parse-ok{color:var(--grn);font-size:12px;font-weight:600;margin-bottom:6px}
+table.pt{width:100%;border-collapse:collapse;font-size:11px;border:1px solid var(--bdr);overflow:hidden;margin-bottom:10px}
+table.pt th{background:#F3F5F8;padding:5px 8px;font-size:10px;font-weight:600;color:var(--tx2);border-bottom:1px solid var(--bdr)}
+table.pt td{padding:5px 8px;border-bottom:1px solid #F0F2F5}
+table.pt tfoot td{background:#F8F9FA;font-weight:600;border-bottom:none}
+.upa{border:2px dashed var(--bdr);border-radius:8px;padding:18px;text-align:center;cursor:pointer;margin-bottom:8px}
+.upa:hover{border-color:var(--pri);background:#F8F9FF}
+.upa-t{font-size:13px;font-weight:500;margin-bottom:3px}
+.upa-s{font-size:11px;color:var(--tx2)}
+.upa-s a{color:var(--pri);cursor:pointer;text-decoration:underline}
+/* TEMPLATE */
+.tpb{background:#F8F9FA;border:1px solid var(--bdr);border-radius:6px;padding:9px 11px;margin-bottom:10px}
+.tpb-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;font-size:11px;font-weight:600}
+table.tpt{width:100%;border-collapse:collapse;font-size:10px;background:#fff}
+table.tpt th{background:#EEF2FF;padding:4px 7px;color:var(--pri);font-weight:600;border-bottom:1px solid #C7D2FE;text-align:left;white-space:nowrap}
+table.tpt td{padding:3px 7px;color:var(--tx2);border-bottom:1px solid #F0F2F5}
+table.tpt tr:last-child td{border-bottom:none}
+.tpn{font-size:10px;color:var(--tx2);margin-top:5px}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <span class="nav-brand">MJ 생산관리</span>
+  <a href="production_plan_v1.html" class="nav-lnk">생산계획목록</a>
+  <a href="production_projectinfo_v1.html" class="nav-lnk">생산과제정보등록</a>
+  <span class="nav-lnk on">입출하관리</span>
+</nav>
+<div class="body">
+  <div class="sb">
+    <div class="sb-hd">
+      <h2>과제 목록</h2>
+      <input class="sb-q" id="sbq" placeholder="과제명·AL Code 검색" oninput="filterSb(this.value)">
+    </div>
+    <div class="sb-list" id="sblist"></div>
+  </div>
+  <div class="ct">
+    <div class="empty-ct" id="empty-ct">← 좌측에서 과제를 선택하세요</div>
+    <div class="pv" id="pv">
+      <div class="pv-bar">
+        <div class="pv-name" id="pv-name"></div>
+        <div class="pv-meta" id="pv-meta"></div>
+      </div>
+      <div class="tabs" id="tabs"></div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </div>
+</div>
+
+<!-- FAB IN modal -->
+<div class="ov" id="ov-fi"><div class="mbox">
+  <div class="mhd"><h3 id="fi-ttl">FAB IN 등록</h3><button class="mclose" onclick="closeM('ov-fi')">✕</button></div>
+  <div class="mbody" id="fi-body"></div>
+  <div class="mft"><button class="btn ghost" onclick="closeM('ov-fi')">취소</button><button class="btn pri" onclick="saveFabIn()">저장</button></div>
+</div></div>
+
+<!-- FAB OUT modal -->
+<div class="ov" id="ov-fo"><div class="mbox wide">
+  <div class="mhd"><h3 id="fo-ttl">FAB OUT 등록</h3><button class="mclose" onclick="closeM('ov-fo')">✕</button></div>
+  <div class="mbody" id="fo-body"></div>
+  <div class="mft"><button class="btn ghost" onclick="closeM('ov-fo')">취소</button><button class="btn pri" onclick="saveFabOut()">저장</button></div>
+</div></div>
+
+<!-- LOT modal -->
+<div class="ov" id="ov-lot"><div class="mbox xl">
+  <div class="mhd"><h3 id="lot-ttl">Lot 등록</h3><button class="mclose" onclick="closeM('ov-lot')">✕</button></div>
+  <div class="mbody" id="lot-body"></div>
+  <div class="mft"><button class="btn ghost" onclick="closeM('ov-lot')">취소</button><button class="btn pri" onclick="saveLot()">저장</button></div>
+</div></div>
+
+<!-- Excel modal -->
+<div class="ov" id="ov-xl"><div class="mbox wide">
+  <div class="mhd"><h3 id="xl-ttl">Excel 업로드</h3><button class="mclose" onclick="closeM('ov-xl')">✕</button></div>
+  <div class="mbody" id="xl-body"></div>
+  <div class="mft"><button class="btn ghost" onclick="closeM('ov-xl')">취소</button><button class="btn pri" id="xl-save" style="display:none" onclick="saveExcel()">저장</button></div>
+</div></div>
+
+<script>
+/* ── DATA ── */
+var PROJECTS = [
+  {id:0, customer:'Samsung',      name:'SI0136A',         alCode:'BX4K72A', cls:'MPW',              qty:40, unit:'EA',  tmCode:'TMWC09_C16', netDie:0,    scmFlow:['FAB']},
+  {id:1, customer:'SK Hynix',     name:'ANA38413_N1C',    alCode:'TR9M21A', cls:'Pilot Wafer',      qty:5,  unit:'PCS', tmCode:'TMVZ07',     netDie:850,  scmFlow:['FAB','CP']},
+  {id:2, customer:'LG Electronics',name:'Ratel_N1C',      alCode:'PJ2H67A', cls:'Production Wafer', qty:6,  unit:'PCS', tmCode:'TMMQ65',     netDie:1200, scmFlow:['FAB','ASSEMBLY','FT']},
+  {id:3, customer:'Samsung',      name:'FALCON_N1B',      alCode:'QN8L44A', cls:'Production Wafer', qty:50, unit:'PCS', tmCode:'TMSV86',     netDie:0,    scmFlow:['FAB']},
+  {id:4, customer:'LG Electronics',name:'Tachy-BS4_N1A',  alCode:'HL6T38A', cls:'Production Wafer', qty:20, unit:'PCS', tmCode:'TMUE69',     netDie:620,  scmFlow:['FAB','FT']},
+];
+
+var nid = 200;
+var RECORDS = [
+  /* MPW SI0136A */
+  {id:1,  pid:0, step:'FAB', dir:'IN',  ver:'A', date:'2026-01-25', startQty:40, remark:'초도 투입'},
+  {id:2,  pid:0, step:'FAB', dir:'OUT', parentId:1, ver:'A', date:'2026-05-06',
+   invoiceNo:'0K64260506VY',
+   items:[{n:1,name:'SI0136A',chip:'G6X997.1#1',qty:20,unit:'EA'},{n:2,name:'SI0136A',chip:'G6X997.1#2',qty:20,unit:'EA'}],
+   totalQty:40, unit:'EA', status:'완료', direction:'고객출하', remark:''},
+
+  /* Pilot ANA38413 */
+  {id:3, pid:1, step:'FAB', dir:'IN',  ver:'A', date:'2026-02-20', lotId:'ANA384.01', qty:5, waferNos:[1,2,3,4,5], remark:''},
+  {id:4, pid:1, step:'FAB', dir:'OUT', parentId:3, ver:'A', date:'2026-03-28', lotId:'ANA384.01',
+   waferNos:[1,2,3,4,5], qty:5, status:'완료', direction:'다음step', reject:0, yld:'99.50', remark:''},
+  {id:5, pid:1, step:'CP', dir:'LOT', lotId:'ANA384.01', qty:5, waferNos:[1,2,3,4,5],
+   receiveDate:'2026-04-01', startDate:'2026-04-03', endDate:'2026-04-20',
+   inQtyPcs:5, inQtyEa:4250,
+   waferOuts:[
+     {waferNo:1, outQtyEa:838, isScrap:false, remark:''},
+     {waferNo:2, outQtyEa:841, isScrap:false, remark:''},
+     {waferNo:3, outQtyEa:0,   isScrap:true,  remark:'파손'},
+     {waferNo:4, outQtyEa:845, isScrap:false, remark:''},
+     {waferNo:5, outQtyEa:840, isScrap:false, remark:''},
+   ],
+   outQtyPcs:4, outQtyEa:3364, reject:886, yld:'79.15', status:'완료', direction:'고객출하', remark:''},
+
+  /* FALCON_N1B 잔여 케이스 */
+  {id:6, pid:3, step:'FAB', dir:'IN',  ver:'A', date:'2026-04-10', lotId:'FLC001.01', qty:25,
+   waferNos:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25], remark:'초도 25장'},
+  {id:7, pid:3, step:'FAB', dir:'OUT', parentId:6, ver:'A', date:'2026-05-20', lotId:'FLC001.01',
+   waferNos:[1,2,3], qty:3, status:'완료', direction:'고객출하', reject:0, yld:'99.20', remark:'우선 출하분'},
+  {id:8, pid:3, step:'FAB', dir:'OUT', parentId:6, ver:'A', date:'2026-05-20', lotId:'FLC001.01',
+   waferNos:[4,5,6], qty:3, status:'진행중', direction:'보관', reject:0, yld:'', remark:'Cont Hold'},
+];
+
+/* ── STATE ── */
+var selPid = -1, selStep = '', sbQ = '';
+var ctx = {};
+var parsedItems = [], excelRows = [];
+var editFiId = null, editFoId = null, editLotId = null;
+var dists = [];
+
+/* ── WAFER HELPERS ── */
+function w2s(arr) {
+  if (!arr || !arr.length) return '';
+  var s = arr.slice().sort(function(a,b){return a-b;});
+  var out = [], st = s[0], pr = s[0];
+  for (var i = 1; i <= s.length; i++) {
+    if (i < s.length && s[i] === pr + 1) { pr = s[i]; }
+    else { out.push(st === pr ? '#'+st : '#'+st+'-'+pr); if (i < s.length) { st = s[i]; pr = s[i]; } }
+  }
+  return out.join(', ');
+}
+
+function s2w(str) {
+  var out = [];
+  if (!str) return out;
+  str.split(/[,;]+/).forEach(function(p) {
+    p = p.replace(/#/g,'').trim();
+    if (!p) return;
+    /* ~ 또는 - 모두 범위 구분자로 허용 (Excel에서 2-20이 날짜로 인식될 때 2~20 사용 가능) */
+    var rangeMatch = p.match(/^(\d+)\s*[~\-]\s*(\d+)$/);
+    if (rangeMatch) {
+      var a = parseInt(rangeMatch[1]), b = parseInt(rangeMatch[2]);
+      if (!isNaN(a) && !isNaN(b)) { for (var i = Math.min(a,b); i <= Math.max(a,b); i++) out.push(i); }
+    } else {
+      var n = parseInt(p);
+      if (!isNaN(n)) out.push(n);
+    }
+  });
+  return out.filter(function(v,i,a){return a.indexOf(v)===i;}).sort(function(a,b){return a-b;});
+}
+
+function getOutWafers(inId) {
+  var res = [];
+  RECORDS.forEach(function(r){ if (r.parentId === inId && r.dir === 'OUT') res = res.concat(r.waferNos||[]); });
+  return res;
+}
+
+function getRemaining(inId) {
+  var inR = RECORDS.filter(function(r){return r.id===inId;})[0];
+  if (!inR || !inR.waferNos) return [];
+  var out = getOutWafers(inId);
+  return inR.waferNos.filter(function(n){return out.indexOf(n)===-1;});
+}
+
+function prevStepLotIds(pid, step) {
+  var p = PROJECTS.filter(function(x){return x.id===pid;})[0];
+  var flow = p.scmFlow;
+  var idx = flow.indexOf(step);
+  if (idx <= 0) return [];
+  var prev = flow[idx-1];
+  var ids = [];
+  RECORDS.forEach(function(r) {
+    if (r.pid !== pid) return;
+    var lid = null;
+    if (prev === 'FAB' && r.step === 'FAB' && r.dir === 'OUT' && r.lotId) lid = r.lotId;
+    else if (r.step === prev && r.dir === 'LOT' && r.lotId) lid = r.lotId;
+    if (lid && ids.indexOf(lid) === -1) ids.push(lid);
+  });
+  return ids;
+}
+
+/* ── TSMC PARSER ── */
+function parseTSMC(text) {
+  var lines = text.split('\n'), items = [], invoiceNo = '';
+  var im = text.match(/INVOICE NO\.\:\s*(\S+)/); if (im) invoiceNo = im[1];
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    var itemM = line.match(/^\s{2,5}(\d+)\s{2,4}(AL-\S+)\s/);
+    if (!itemM) continue;
+    var itemNo = parseInt(itemM[1]);
+    var name='', qty=0, unit='EA', chip='';
+    for (var j = i+1; j < Math.min(i+10, lines.length); j++) {
+      var raw = lines[j], l = raw.trim();
+      if (!l) continue;
+      if (/^\s{2,5}\d+\s{2,4}AL-/.test(raw) && j > i) break;
+      if (l.startsWith('---') || l.startsWith('GRAND') || l.startsWith('TOTAL')) break;
+      if (!name) { var pm = raw.match(/^\s{5,}(\w+)\s{4,}(\w+)\s*$/); if (pm){name=pm[1];continue;} }
+      var qm = l.match(/^(\d+)\s+(EA|PCS)$/); if (qm){qty=parseInt(qm[1]);unit=qm[2];continue;}
+      var cm = l.match(/^(\S+#\d+)$/); if (cm && !chip) chip=cm[1];
+    }
+    if (qty > 0) items.push({n:itemNo, name:name, chip:chip, qty:qty, unit:unit});
+  }
+  return {invoiceNo:invoiceNo, items:items};
+}
+
+/* ── COMMON ── */
+function clsBadge(c) {
+  if (c === 'MPW') return '<span class="bdg mpw">MPW</span>';
+  if (c === 'Pilot Wafer') return '<span class="bdg pilot">Pilot</span>';
+  return '<span class="bdg prod">Prod</span>';
+}
+function stPill(s) { return s ? '<span class="stp '+s+'">'+s+'</span>' : '—'; }
+function drPill(d) { return d ? '<span class="drp '+d+'">'+d+'</span>' : '—'; }
+function dash(v) { return (v !== undefined && v !== null && v !== '') ? v : '—'; }
+function gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+function gn(id) { var x = gv(id); return x === '' ? null : Number(x); }
+
+function delRec(id) {
+  if (!confirm('삭제하시겠습니까?')) return;
+  var idx = -1;
+  RECORDS.forEach(function(r,i){if(r.id===id)idx=i;});
+  if (idx > -1) RECORDS.splice(idx, 1);
+  rerender();
+}
+
+function closeM(id) {
+  document.getElementById(id).classList.remove('open');
+  editFiId = editFoId = editLotId = null;
+}
+
+function openM(id) { document.getElementById(id).classList.add('open'); }
+
+['ov-fi','ov-fo','ov-lot','ov-xl'].forEach(function(id) {
+  document.getElementById(id).addEventListener('click', function(e) {
+    if (e.target === e.currentTarget) closeM(id);
+  });
+});
+
+/* ── SIDEBAR ── */
+function filterSb(q) { sbQ = q; renderSidebar(); }
+
+function renderSidebar() {
+  var q = sbQ.toLowerCase();
+  var list = PROJECTS.filter(function(p) {
+    return !q || p.name.toLowerCase().indexOf(q) > -1 || p.alCode.toLowerCase().indexOf(q) > -1;
+  });
+  document.getElementById('sblist').innerHTML = list.map(function(p) {
+    return '<div class="sb-item'+(selPid===p.id?' on':'')+'" onclick="selProj('+p.id+')">'
+      +'<div class="sb-name">'+p.name+' '+clsBadge(p.cls)+'</div>'
+      +'<div class="sb-meta">'+p.alCode+' · '+p.customer+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function selProj(pid) {
+  selPid = pid;
+  var p = PROJECTS.filter(function(x){return x.id===pid;})[0];
+  renderSidebar();
+  document.getElementById('empty-ct').style.display = 'none';
+  document.getElementById('pv').className = 'pv show';
+  document.getElementById('pv-name').textContent = p.name;
+  document.getElementById('pv-meta').innerHTML =
+    clsBadge(p.cls)
+    +'<span><strong>AL Code</strong> <span class="mono">'+p.alCode+'</span></span>'
+    +'<span><strong>TM Code</strong> '+(p.tmCode||'—')+'</span>'
+    +'<span><strong>Net Die</strong> '+(p.netDie||'—')+'</span>'
+    +'<span><strong>고객사</strong> '+p.customer+'</span>'
+    +'<span><strong>총 Qty</strong> '+p.qty+' '+p.unit+'</span>';
+  if (p.scmFlow.indexOf(selStep) === -1) selStep = p.scmFlow[0];
+  renderTabs(p);
+  renderPanel(p);
+}
+
+function renderTabs(p) {
+  document.getElementById('tabs').innerHTML = p.scmFlow.map(function(s) {
+    return '<div class="tab'+(selStep===s?' on':'')+'" onclick="selTab(\''+s+'\')">'+s+'</div>';
+  }).join('');
+}
+
+function selTab(s) {
+  selStep = s;
+  var p = PROJECTS.filter(function(x){return x.id===selPid;})[0];
+  renderTabs(p); renderPanel(p);
+}
+
+function rerender() {
+  var p = PROJECTS.filter(function(x){return x.id===selPid;})[0];
+  if (p) renderPanel(p);
+}
+
+function renderPanel(p) {
+  document.getElementById('panel').innerHTML = selStep === 'FAB' ? buildFab(p) : buildLot(p, selStep);
+}
+
+/* ── FAB SECTION ── */
+function buildFab(p) {
+  var mpw = p.cls === 'MPW';
+  var inRecs = RECORDS.filter(function(r){return r.pid===p.id && r.step==='FAB' && r.dir==='IN';});
+  var thMPW = '<th>구분</th><th>Ver</th><th>날짜</th><th>Start Qty</th><th>Invoice No.</th><th>품목 내역</th><th>출하 합계</th><th>상태</th><th>처리방향</th><th>Remark</th><th></th>';
+  var thW   = '<th>구분</th><th>Ver</th><th>날짜</th><th>Lot ID</th><th>Qty</th><th>Wafer No.</th><th>현황</th><th>상태</th><th>처리방향</th><th>Reject</th><th>YLD%</th><th>Remark</th><th></th>';
+  var cols = mpw ? 11 : 13;
+  var rows = '';
+  if (!inRecs.length) {
+    rows = '<tr><td colspan="'+cols+'" class="emp">FAB 기록 없음 — IN 추가 버튼으로 시작</td></tr>';
+  } else {
+    inRecs.forEach(function(inR) {
+      rows += buildInRow(inR, mpw);
+      RECORDS.filter(function(r){return r.pid===p.id && r.step==='FAB' && r.dir==='OUT' && r.parentId===inR.id;})
+             .forEach(function(outR){ rows += buildOutRow(outR, mpw); });
+    });
+  }
+  var xlBtn = mpw ? '' : '<button class="btn ghost sm" onclick="openXl('+p.id+',\'FAB\')">Excel 업로드</button>';
+  return '<div class="sec">'
+    +'<div class="sec-hd"><span class="sec-title">FAB 입출하 기록'+(mpw?' <span class="bdg mpw">MPW · 잔여개념 없음</span>':'')+'</span>'
+    +'<div class="acts">'+xlBtn+'<button class="btn pri sm" onclick="openFi('+p.id+')">+ IN 추가</button></div></div>'
+    +'<div class="tw"><table class="rt"><thead><tr>'+(mpw?thMPW:thW)+'</tr></thead><tbody>'+rows+'</tbody></table></div>'
+    +'</div>';
+}
+
+function buildInRow(r, mpw) {
+  var acts = '<div class="acts">'
+    +'<button class="btn xs out" onclick="openFo('+r.id+')">OUT 등록</button>'
+    +'<button class="btn xs edit" onclick="openFiEdit('+r.id+')">편집</button>'
+    +'<button class="btn xs danger" onclick="delRec('+r.id+')">삭제</button>'
+    +'</div>';
+  if (mpw) {
+    var hasOut = RECORDS.filter(function(x){return x.parentId===r.id && x.dir==='OUT';}).length > 0;
+    return '<tr class="in-row'+(hasOut?' done':'')+'">'
+      +'<td><span class="tin">IN</span></td>'
+      +'<td>'+r.ver+'</td><td>'+r.date+'</td>'
+      +'<td><strong>'+r.startQty+'</strong> EA</td>'
+      +'<td colspan="3" style="color:var(--tx2);font-size:10px">'+(hasOut?'OUT 등록됨':'— OUT 미등록')+'</td>'
+      +'<td>—</td><td>—</td><td>'+(r.remark||'')+'</td><td>'+acts+'</td>'
+      +'</tr>';
+  }
+  var outW = getOutWafers(r.id), rem = getRemaining(r.id);
+  var done = rem.length === 0 && outW.length > 0;
+  var badge = done ? '<span class="bdg-done">완출하</span>'
+    : outW.length === 0 ? '<span class="bdg-wait">미출하</span>'
+    : '<span class="bdg-rem">잔여 '+rem.length+'장</span>';
+  return '<tr class="in-row'+(done?' done':'')+'">'
+    +'<td><span class="tin">IN</span></td>'
+    +'<td>'+r.ver+'</td><td>'+r.date+'</td>'
+    +'<td class="mono">'+(r.lotId||'')+'</td>'
+    +'<td>'+(r.qty||'')+'</td>'
+    +'<td class="mono" style="font-size:10px">'+w2s(r.waferNos)+'</td>'
+    +'<td>'+badge+'<div style="font-size:10px;color:var(--tx2);margin-top:1px">'+outW.length+'/'+(r.qty||0)+'장 출하</div></td>'
+    +'<td>—</td><td>—</td><td>—</td><td>—</td><td>'+(r.remark||'')+'</td><td>'+acts+'</td>'
+    +'</tr>';
+}
+
+function buildOutRow(r, mpw) {
+  var acts = '<div class="acts">'
+    +'<button class="btn xs edit" onclick="openFoEdit('+r.id+')">편집</button>'
+    +'<button class="btn xs danger" onclick="delRec('+r.id+')">삭제</button>'
+    +'</div>';
+  if (mpw) {
+    var items = r.items || [];
+    var detail = items.map(function(i){return '<span class="mono" style="font-size:10px">'+i.chip+' ('+i.qty+i.unit+')</span>';}).join('<br>');
+    var total = r.totalQty ? '<strong>'+r.totalQty+'</strong> '+r.unit : '—';
+    return '<tr class="out-row">'
+      +'<td><span class="tout">OUT</span></td>'
+      +'<td>'+r.ver+'</td><td>'+r.date+'</td><td>—</td>'
+      +'<td class="mono" style="font-size:10px">'+(r.invoiceNo||'')+'</td>'
+      +'<td>'+(detail||'—')+'</td><td>'+total+'</td>'
+      +'<td>'+stPill(r.status)+'</td><td>'+drPill(r.direction)+'</td>'
+      +'<td>'+(r.remark||'')+'</td><td>'+acts+'</td>'
+      +'</tr>';
+  }
+  return '<tr class="out-row">'
+    +'<td><span class="tout">OUT</span></td>'
+    +'<td>'+r.ver+'</td><td>'+r.date+'</td>'
+    +'<td class="mono">'+(r.lotId||'')+'</td>'
+    +'<td>'+(r.qty||'')+'</td>'
+    +'<td class="mono" style="font-size:10px">'+w2s(r.waferNos)+'</td>'
+    +'<td style="color:var(--tx2);font-size:10px">분배 '+(r.qty||0)+'장</td>'
+    +'<td>'+stPill(r.status)+'</td><td>'+drPill(r.direction)+'</td>'
+    +'<td>'+dash(r.reject)+'</td><td>'+(r.yld?r.yld+'%':'—')+'</td>'
+    +'<td>'+(r.remark||'')+'</td><td>'+acts+'</td>'
+    +'</tr>';
+}
+
+/* ── LOT SECTION ── */
+function buildLot(p, step) {
+  var lots = RECORDS.filter(function(r){return r.pid===p.id && r.step===step && r.dir==='LOT';});
+  var th = '<th></th><th>Lot ID</th><th>Qty</th><th>Wafer No.</th><th>입고일</th><th>시작일</th><th>종료일</th><th>In(PCS)</th><th>In(EA)</th><th>Out(PCS)</th><th>Out(EA)</th><th>Reject</th><th>YLD%</th><th>상태</th><th>처리방향</th><th>Remark</th><th></th>';
+  var rows = '';
+  if (!lots.length) {
+    rows = '<tr><td colspan="17" class="emp">등록된 Lot 없음</td></tr>';
+  } else {
+    lots.forEach(function(r) {
+      rows += buildLotRow(r);
+      rows += buildLotDetail(r);
+    });
+  }
+  return '<div class="sec">'
+    +'<div class="sec-hd"><span class="sec-title">'+step+' Lot 기록</span>'
+    +'<div class="acts">'
+    +'<button class="btn pri sm" onclick="openLot('+p.id+',\''+step+'\',null)">+ Lot 추가</button>'
+    +'<button class="btn ghost sm" onclick="openXl('+p.id+',\''+step+'\')">Excel 업로드</button>'
+    +'</div></div>'
+    +'<div class="tw"><table class="rt"><thead><tr>'+th+'</tr></thead><tbody>'+rows+'</tbody></table></div>'
+    +'</div>';
+}
+
+function buildLotRow(r) {
+  var hasWo = r.waferOuts && r.waferOuts.length > 0;
+  var tog = hasWo ? '<button class="btn xs ghost" onclick="togLotDetail('+r.id+')" id="tog-'+r.id+'">▼ 장별</button>' : '';
+  var inEa = r.inQtyEa != null ? (+r.inQtyEa).toLocaleString() : '—';
+  var outEa = r.outQtyEa != null ? (+r.outQtyEa).toLocaleString() : '—';
+  return '<tr class="lot-row">'
+    +'<td>'+tog+'</td>'
+    +'<td class="mono" style="font-weight:600">'+(r.lotId||'')+'</td>'
+    +'<td>'+(r.qty||'')+'</td>'
+    +'<td class="mono" style="font-size:10px">'+(w2s(r.waferNos)||'—')+'</td>'
+    +'<td>'+(r.receiveDate||'—')+'</td><td>'+(r.startDate||'—')+'</td><td>'+(r.endDate||'—')+'</td>'
+    +'<td>'+dash(r.inQtyPcs)+'</td><td>'+inEa+'</td>'
+    +'<td>'+dash(r.outQtyPcs)+'</td><td>'+outEa+'</td>'
+    +'<td>'+dash(r.reject)+'</td><td>'+(r.yld?r.yld+'%':'—')+'</td>'
+    +'<td>'+stPill(r.status)+'</td><td>'+drPill(r.direction)+'</td>'
+    +'<td>'+(r.remark||'')+'</td>'
+    +'<td><div class="acts">'
+    +'<button class="btn xs edit" onclick="openLotEdit('+r.id+')">편집</button>'
+    +'<button class="btn xs danger" onclick="delRec('+r.id+')">삭제</button>'
+    +'</div></td>'
+    +'</tr>';
+}
+
+function buildLotDetail(r) {
+  if (!r.waferOuts || !r.waferOuts.length) {
+    return '<tr class="lot-detail-row hidden" id="ld-'+r.id+'"><td colspan="17"></td></tr>';
+  }
+  var tpcs = r.waferOuts.filter(function(w){return !w.isScrap;}).length;
+  var tea  = r.waferOuts.filter(function(w){return !w.isScrap;}).reduce(function(a,w){return a+(+w.outQtyEa||0);},0);
+  var tscr = r.waferOuts.filter(function(w){return w.isScrap;}).length;
+  var wrows = r.waferOuts.map(function(w) {
+    return '<tr class="'+(w.isScrap?'scrap':'')+'">'
+      +'<td class="mono" style="font-weight:600">#'+String(w.waferNo).padStart(2,'0')+'</td>'
+      +'<td style="text-align:right">'+(w.isScrap?'<span style="color:var(--red)">SCRAP</span>':(+w.outQtyEa||0).toLocaleString()+' EA')+'</td>'
+      +'<td style="text-align:center">'+(w.isScrap?'<span style="color:var(--red);font-weight:700">✕</span>':'<span style="color:var(--grn)">✓</span>')+'</td>'
+      +'<td style="color:var(--tx2)">'+(w.remark||'')+'</td>'
+      +'</tr>';
+  }).join('');
+  return '<tr class="lot-detail-row hidden" id="ld-'+r.id+'">'
+    +'<td colspan="17"><div class="lot-wo-inner">'
+    +'<div style="font-size:11px;font-weight:700;color:var(--tx2);margin-bottom:5px">'
+    +'Wafer별 OUT — Out: '+tpcs+'장 / '+tea.toLocaleString()+' EA · Scrap: '+tscr+'장</div>'
+    +'<table class="wo-tbl"><thead><tr><th>Wafer #</th><th>Out Good Die (EA)</th><th>Scrap</th><th>Remark</th></tr></thead>'
+    +'<tbody>'+wrows+'</tbody></table>'
+    +'</div></td></tr>';
+}
+
+function togLotDetail(id) {
+  var el = document.getElementById('ld-'+id);
+  var btn = document.getElementById('tog-'+id);
+  if (!el) return;
+  el.classList.toggle('hidden');
+  if (btn) btn.textContent = el.classList.contains('hidden') ? '▼ 장별' : '▲ 장별';
+}
+
+/* ── FAB IN MODAL ── */
+function openFi(pid, editId) {
+  editFiId = editId || null;
+  var p = PROJECTS.filter(function(x){return x.id===pid;})[0];
+  var mpw = p.cls === 'MPW';
+  ctx = {type:'fi', pid:pid, mpw:mpw};
+  var r = editId ? RECORDS.filter(function(x){return x.id===editId;})[0] : {};
+  document.getElementById('fi-ttl').textContent = (mpw?'MPW ':'')+'FAB IN '+(editId?'편집':'등록');
+  if (mpw) {
+    document.getElementById('fi-body').innerHTML =
+      '<div class="fg c3">'
+      +'<div class="fld"><label>Ver</label><input id="fi-ver" value="'+(r.ver||'')+'" placeholder="A"></div>'
+      +'<div class="fld"><label>날짜</label><input id="fi-date" type="date" value="'+(r.date||'')+'"></div>'
+      +'<div class="fld"><label>Start Qty (EA)</label><input id="fi-sq" type="number" min="0" value="'+(r.startQty||'')+'" placeholder="40"></div>'
+      +'</div>'
+      +'<div class="fg c1"><div class="fld"><label>Remark</label><input id="fi-rm" value="'+(r.remark||'')+'"></div></div>'
+      +'<p class="fn" style="margin-top:6px">※ MPW는 IN 수량 = OUT 수량 항상 동일 · 잔여/YLD 개념 없음</p>';
+  } else {
+    document.getElementById('fi-body').innerHTML =
+      '<div class="fg">'
+      +'<div class="fld"><label>Ver</label><input id="fi-ver" value="'+(r.ver||'')+'" placeholder="A"></div>'
+      +'<div class="fld"><label>날짜</label><input id="fi-date" type="date" value="'+(r.date||'')+'"></div>'
+      +'</div>'
+      +'<div class="fg">'
+      +'<div class="fld"><label>Lot ID</label><input id="fi-lid" class="mono" value="'+(r.lotId||'')+'" placeholder="ABC123.01"><span class="fn">영숫자 6자리 · "." · 2자리</span></div>'
+      +'<div class="fld"><label>Wafer 수량 (최대 25)</label>'
+      +'<input id="fi-qty" type="number" min="1" max="25" value="'+(r.qty||'')+'" placeholder="예: 25" oninput="fiPreview(this.value)">'
+      +'<span class="fn" id="fi-pv">입력하면 자동으로 #1-N 할당</span></div>'
+      +'</div>'
+      +'<div class="fg c1"><div class="fld"><label>Remark</label><input id="fi-rm" value="'+(r.remark||'')+'"></div></div>'
+      +'<p class="fn" style="margin-top:6px">※ Wafer No.는 수량 기준 자동 할당 · 처리방향·Reject·YLD는 OUT 등록 시 입력</p>';
+    if (r.qty) fiPreview(r.qty);
+  }
+  openM('ov-fi');
+}
+
+function fiPreview(val) {
+  var el = document.getElementById('fi-pv');
+  if (!el) return;
+  var n = parseInt(val);
+  if (!n || n < 1) { el.textContent='입력하면 자동으로 #1-N 할당'; el.style.color=''; return; }
+  if (n > 25) { el.textContent='⚠ 최대 25장'; el.style.color='var(--red)'; return; }
+  el.textContent='→ #1-'+n+' 자동 할당 (총 '+n+'장)'; el.style.color='var(--pri)';
+}
+
+function openFiEdit(id) { var r=RECORDS.filter(function(x){return x.id===id;})[0]; openFi(r.pid,id); }
+
+function saveFabIn() {
+  var rec = {pid:ctx.pid, step:'FAB', dir:'IN'};
+  rec.ver = gv('fi-ver')||'A'; rec.date = gv('fi-date'); rec.remark = gv('fi-rm');
+  if (!rec.date) { alert('날짜를 입력해주세요.'); return; }
+  if (ctx.mpw) {
+    rec.startQty = Number(gv('fi-sq'))||0;
+    if (!rec.startQty) { alert('Start Qty를 입력해주세요.'); return; }
+  } else {
+    var qty = parseInt(gv('fi-qty'))||0;
+    if (qty < 1) { alert('수량을 입력해주세요.'); return; }
+    if (qty > 25) { alert('최대 25장까지 가능합니다.'); return; }
+    rec.lotId = gv('fi-lid');
+    if (!rec.lotId) { alert('Lot ID를 입력해주세요.'); return; }
+    rec.qty = qty;
+    rec.waferNos = [];
+    for (var i = 1; i <= qty; i++) rec.waferNos.push(i);
+  }
+  if (editFiId) {
+    var orig = RECORDS.filter(function(x){return x.id===editFiId;})[0];
+    if (!ctx.mpw) {
+      var used = getOutWafers(editFiId);
+      var bad = used.filter(function(n){return rec.waferNos.indexOf(n)===-1;});
+      if (bad.length) { alert('OUT 등록된 Wafer #'+bad.join(',')+'는 제거 불가.'); return; }
+    }
+    Object.assign(orig, rec);
+  } else {
+    rec.id = nid++; RECORDS.push(rec);
+  }
+  closeM('ov-fi'); rerender();
+}
+
+/* ── FAB OUT MODAL ── */
+function openFo(parentInId, editOutId) {
+  editFoId = editOutId || null;
+  var parentIn = RECORDS.filter(function(r){return r.id===parentInId;})[0];
+  var p = PROJECTS.filter(function(x){return x.id===parentIn.pid;})[0];
+  var mpw = p.cls === 'MPW';
+  ctx = {type:'fo', parentInId:parentInId, pid:p.id, mpw:mpw};
+  parsedItems = [];
+  document.getElementById('fo-ttl').textContent = mpw ? 'MPW FAB OUT — TSMC 파싱' : 'FAB OUT '+(editOutId?'편집':'등록')+' — Lot '+(parentIn.lotId||'');
+  if (mpw) {
+    var r = editOutId ? RECORDS.filter(function(x){return x.id===editOutId;})[0] : {};
+    parsedItems = r.items ? r.items.slice() : [];
+    document.getElementById('fo-body').innerHTML =
+      '<div class="fg">'
+      +'<div class="fld"><label>Ver</label><input id="fo-ver" value="'+(r.ver||parentIn.ver||'A')+'" class="fpre"></div>'
+      +'<div class="fld"><label>출하 날짜</label><input id="fo-date" type="date" value="'+(r.date||'')+'"></div>'
+      +'</div>'
+      +'<div class="msec">TSMC Invoice 파싱</div>'
+      +'<div class="upa" onclick="document.getElementById(\'fo-file\').click()">'
+      +'<input type="file" id="fo-file" accept=".txt" style="display:none" onchange="loadInvoice(this)">'
+      +'<div class="upa-t">📂 .txt 파일 업로드</div>'
+      +'<div class="upa-s">또는 <a onclick="event.stopPropagation();demoInvoice()">데모 Invoice 로드</a></div>'
+      +'</div>'
+      +'<div class="fld" style="margin-bottom:8px"><textarea class="pa" id="fo-txt" placeholder="Invoice 내용 붙여넣기..."></textarea></div>'
+      +'<button class="btn ghost sm" onclick="runParse()" style="margin-bottom:10px">▶ 파싱 실행</button>'
+      +'<div id="fo-pr">'+(r.items?renderParsedTbl(r.items,r.invoiceNo):'')+'</div>'
+      +'<div class="msec">출하 처리</div>'
+      +'<div class="fg">'
+      +'<div class="fld"><label>상태</label><select id="fo-st">'+['진행중','완료','scrap'].map(function(o){return '<option'+(r.status===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
+      +'<div class="fld"><label>처리방향</label><select id="fo-dr">'+['다음step','고객출하','보관','기타'].map(function(o){return '<option'+(r.direction===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
+      +'</div>'
+      +'<div class="fg c1"><div class="fld"><label>Remark</label><input id="fo-rm" value="'+(r.remark||'')+'"></div></div>';
+    openM('ov-fo'); return;
+  }
+  /* Wafer multi-dist */
+  var inW = parentIn.waferNos || [];
+  var remaining;
+  if (editOutId) {
+    var others = RECORDS.filter(function(r){return r.parentId===parentInId && r.dir==='OUT' && r.id!==editOutId;}).reduce(function(a,r){return a.concat(r.waferNos||[]);}, []);
+    remaining = inW.filter(function(n){return others.indexOf(n)===-1;});
+  } else {
+    remaining = getRemaining(parentInId);
+  }
+  if (!remaining.length && !editOutId) { alert('모든 Wafer가 이미 출하 완료되었습니다.'); return; }
+  if (editOutId) {
+    var re = RECORDS.filter(function(x){return x.id===editOutId;})[0];
+    dists = [{ws:w2s(re.waferNos).replace(/#/g,''), st:re.status||'진행중', dr:re.direction||'다음step', rej:re.reject!=null?re.reject:'', yld:re.yld||'', rm:re.remark||''}];
+  } else {
+    dists = [{ws:'', st:'완료', dr:'다음step', rej:'', yld:'', rm:''}];
+  }
+  document.getElementById('fo-body').innerHTML =
+    '<div class="fg">'
+    +'<div class="fld"><label>Ver</label><input id="fo-ver" value="'+(parentIn.ver||'A')+'" class="fpre"></div>'
+    +'<div class="fld"><label>날짜</label><input id="fo-date" type="date" value="'+(editOutId?RECORDS.filter(function(r){return r.id===editOutId;})[0].date:'')+'"></div>'
+    +'</div>'
+    +'<div class="fg c1"><div class="fld"><label>Lot ID (IN 연동)</label><input id="fo-lid" value="'+(parentIn.lotId||'')+'" class="mono fpre"></div></div>'
+    +'<div class="msec"><span>잔여 Wafer Pool — '+remaining.length+'장 ('+w2s(remaining)+')</span></div>'
+    +'<div class="wp"><div class="wp-hd"><span>Wafer 상태</span><span id="fo-ps" style="margin-left:auto;font-size:10px"></span></div><div class="wp-chips" id="fo-pool"></div></div>'
+    +'<div class="msec"><span>분배 내역</span>'+(editOutId?'':'<button class="btn ghost xs" onclick="addDist()">+ 분배 추가</button>')+'</div>'
+    +'<div id="fo-dists"></div>'
+    +'<p class="fn" style="margin-top:6px">※ 여러 처리방향으로 분배 가능 — 각 분배는 별도 OUT 레코드로 저장</p>';
+  renderDists(parentIn);
+  openM('ov-fo');
+}
+
+function renderDists(parentIn) {
+  var outedOthers = editFoId
+    ? RECORDS.filter(function(r){return r.parentId===parentIn.id && r.dir==='OUT' && r.id!==editFoId;}).reduce(function(a,r){return a.concat(r.waferNos||[]);}, [])
+    : getOutWafers(parentIn.id);
+  var DIRS = ['다음step','고객출하','보관','scrap','기타'];
+  var STS  = ['진행중','완료','scrap'];
+  document.getElementById('fo-dists').innerHTML = dists.map(function(d,i) {
+    return '<div class="dblk d'+i%5+'">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">'
+      +'<strong style="font-size:12px">분배 '+(i+1)+'</strong>'
+      +(dists.length>1?'<button class="btn xs danger" onclick="removeDist('+i+')">✕</button>':'')
+      +'</div>'
+      +'<div class="fg c1" style="margin-bottom:7px"><div class="fld">'
+      +'<label>Wafer 선택 <span class="fn">예: 1~3,5 또는 1-3,5 (범위는 ~ 권장)</span></label>'
+      +'<input class="mono" id="dw'+i+'" value="'+(d.ws||'')+'" placeholder="1~3, 5" oninput="onDwChange()">'
+      +'<span class="fn" id="di'+i+'"></span>'
+      +'</div></div>'
+      +'<div class="fg c3">'
+      +'<div class="fld"><label>처리방향</label><select id="ddr'+i+'" onchange="dists['+i+'].dr=this.value">'+DIRS.map(function(o){return '<option'+(d.dr===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
+      +'<div class="fld"><label>상태</label><select id="dst'+i+'" onchange="dists['+i+'].st=this.value">'+STS.map(function(o){return '<option'+(d.st===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
+      +'<div class="fld"><label>Reject</label><input id="drj'+i+'" type="number" min="0" value="'+(d.rej||'')+'" onchange="dists['+i+'].rej=this.value"></div>'
+      +'</div>'
+      +'<div class="fg">'
+      +'<div class="fld"><label>YLD%</label><input id="dyd'+i+'" placeholder="99.5" value="'+(d.yld||'')+'" onchange="dists['+i+'].yld=this.value"></div>'
+      +'<div class="fld"><label>Remark</label><input id="drm'+i+'" value="'+(d.rm||'')+'" onchange="dists['+i+'].rm=this.value"></div>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+  renderPool(parentIn, outedOthers);
+  updateDistInfo(parentIn, outedOthers);
+}
+
+function renderPool(parentIn, outedOthers) {
+  var inW = parentIn.waferNos || [];
+  var assigned = {};
+  dists.forEach(function(d,i){ s2w(d.ws).forEach(function(n){if(assigned[n]===undefined)assigned[n]=i;}); });
+  document.getElementById('fo-pool').innerHTML = inW.map(function(n) {
+    if (outedOthers.indexOf(n) > -1) return '<span class="wc used" title="다른 OUT 처리됨">#'+String(n).padStart(2,'0')+'</span>';
+    if (assigned[n] !== undefined) return '<span class="wc d'+assigned[n]%5+'">#'+String(n).padStart(2,'0')+'</span>';
+    return '<span class="wc">#'+String(n).padStart(2,'0')+'</span>';
+  }).join('');
+  var remCnt = inW.length - outedOthers.length - Object.keys(assigned).length;
+  document.getElementById('fo-ps').innerHTML = '전체 '+inW.length+'장 · 다른OUT '+outedOthers.length+'장 · 본분배 '+Object.keys(assigned).length+'장 · 미할당 <strong>'+remCnt+'</strong>장';
+}
+
+function updateDistInfo(parentIn, outedOthers) {
+  dists.forEach(function(d,i) {
+    var nums = s2w(d.ws);
+    var el = document.getElementById('di'+i);
+    if (!el) return;
+    var bad = nums.filter(function(n){return (parentIn.waferNos||[]).indexOf(n)===-1 || outedOthers.indexOf(n)>-1;});
+    if (bad.length) el.innerHTML='<span style="color:var(--red)">⚠ Wafer #'+bad.join(',')+'는 사용 불가</span>';
+    else if (!nums.length) el.textContent='Wafer를 입력해주세요';
+    else el.innerHTML='<span style="color:var(--grn)">✓ '+nums.length+'장 선택 ('+w2s(nums)+')</span>';
+  });
+}
+
+function onDwChange() {
+  dists.forEach(function(d,i){ var el=document.getElementById('dw'+i); if(el) d.ws=el.value; });
+  var parentIn = RECORDS.filter(function(r){return r.id===ctx.parentInId;})[0];
+  var outedOthers = editFoId
+    ? RECORDS.filter(function(r){return r.parentId===parentIn.id && r.dir==='OUT' && r.id!==editFoId;}).reduce(function(a,r){return a.concat(r.waferNos||[]);}, [])
+    : getOutWafers(parentIn.id);
+  renderPool(parentIn, outedOthers);
+  updateDistInfo(parentIn, outedOthers);
+}
+
+function addDist() {
+  dists.forEach(function(d,i){var el=document.getElementById('dw'+i);if(el)d.ws=el.value;});
+  dists.push({ws:'',st:'완료',dr:'다음step',rej:'',yld:'',rm:''});
+  var parentIn = RECORDS.filter(function(r){return r.id===ctx.parentInId;})[0];
+  renderDists(parentIn);
+}
+
+function removeDist(idx) {
+  dists.forEach(function(d,i){var el=document.getElementById('dw'+i);if(el)d.ws=el.value;});
+  dists.splice(idx,1);
+  var parentIn = RECORDS.filter(function(r){return r.id===ctx.parentInId;})[0];
+  renderDists(parentIn);
+}
+
+function openFoEdit(id) { var r=RECORDS.filter(function(x){return x.id===id;})[0]; openFo(r.parentId,id); }
+
+function saveFabOut() {
+  var date = gv('fo-date');
+  if (!date) { alert('날짜를 입력해주세요.'); return; }
+  if (ctx.mpw) {
+    if (!parsedItems.length && !confirm('파싱 결과 없음. 저장할까요?')) return;
+    var txt = document.getElementById('fo-txt') ? document.getElementById('fo-txt').value : '';
+    var im = txt.match(/INVOICE NO\.\:\s*(\S+)/);
+    var rec = {pid:ctx.pid, step:'FAB', dir:'OUT', parentId:ctx.parentInId,
+      ver:gv('fo-ver')||'A', date:date, invoiceNo:im?im[1]:'',
+      items:parsedItems.slice(), totalQty:parsedItems.reduce(function(a,i){return a+i.qty;},0),
+      unit:(parsedItems[0]&&parsedItems[0].unit)||'EA',
+      status:gv('fo-st'), direction:gv('fo-dr'), remark:gv('fo-rm')};
+    if (editFoId) { Object.assign(RECORDS.filter(function(x){return x.id===editFoId;})[0], rec); }
+    else { rec.id=nid++; RECORDS.push(rec); }
+    closeM('ov-fo'); rerender(); return;
+  }
+  dists.forEach(function(d,i){
+    var el=document.getElementById('dw'+i); if(el) d.ws=el.value;
+    d.rej=(document.getElementById('drj'+i)||{}).value||d.rej;
+    d.yld=(document.getElementById('dyd'+i)||{}).value||d.yld;
+    d.rm=(document.getElementById('drm'+i)||{}).value||d.rm;
+  });
+  var parentIn = RECORDS.filter(function(r){return r.id===ctx.parentInId;})[0];
+  var outedOthers = editFoId
+    ? RECORDS.filter(function(r){return r.parentId===parentIn.id && r.dir==='OUT' && r.id!==editFoId;}).reduce(function(a,r){return a.concat(r.waferNos||[]);}, [])
+    : getOutWafers(parentIn.id);
+  var seen = [];
+  for (var i = 0; i < dists.length; i++) {
+    var d = dists[i];
+    var nums = s2w(d.ws);
+    if (!nums.length) { alert('분배 '+(i+1)+': Wafer를 입력해주세요.'); return; }
+    for (var j = 0; j < nums.length; j++) {
+      var n = nums[j];
+      if ((parentIn.waferNos||[]).indexOf(n)===-1) { alert('분배 '+(i+1)+': Wafer #'+n+'는 IN에 없습니다.'); return; }
+      if (outedOthers.indexOf(n)>-1) { alert('분배 '+(i+1)+': Wafer #'+n+'는 다른 OUT에서 처리됨.'); return; }
+      if (seen.indexOf(n)>-1) { alert('Wafer #'+n+'가 여러 분배에 중복됨.'); return; }
+      seen.push(n);
+    }
+    d._w = nums;
+  }
+  if (editFoId) {
+    if (dists.length > 1) { alert('편집 모드에서는 분배 1개만 가능합니다.'); return; }
+    var dd = dists[0];
+    Object.assign(RECORDS.filter(function(x){return x.id===editFoId;})[0], {
+      ver:gv('fo-ver')||'A', date:date, lotId:gv('fo-lid'),
+      qty:dd._w.length, waferNos:dd._w, status:dd.st, direction:dd.dr,
+      reject:dd.rej===''?null:Number(dd.rej), yld:dd.yld, remark:dd.rm});
+  } else {
+    dists.forEach(function(dd) {
+      RECORDS.push({id:nid++, pid:ctx.pid, step:'FAB', dir:'OUT', parentId:ctx.parentInId,
+        ver:gv('fo-ver')||'A', date:date, lotId:gv('fo-lid'),
+        qty:dd._w.length, waferNos:dd._w, status:dd.st, direction:dd.dr,
+        reject:dd.rej===''?null:Number(dd.rej), yld:dd.yld, remark:dd.rm});
+    });
+  }
+  closeM('ov-fo'); rerender();
+}
+
+/* ── TSMC PARSE ── */
+function loadInvoice(input) {
+  if (!input.files[0]) return;
+  var fr = new FileReader();
+  fr.onload = function(e){ document.getElementById('fo-txt').value=e.target.result; runParse(); };
+  fr.readAsText(input.files[0]);
+}
+function demoInvoice() {
+  document.getElementById('fo-txt').value =
+    'INVOICE NO.: 0K64260506VY     INVOICE DATE: 05/06/2026\n'
+    +'    1  AL-MPW-20260129-11  0K6426011499\n'
+    +'       SI0136A             TMWC09_C16\n'
+    +'                             20  EA\n'
+    +'                             G6X997.1#1\n'
+    +'                           Chip\n'
+    +'    2  AL-MPW-20260129-11  0K6426011499\n'
+    +'       SI0136A             TMWC09_C16\n'
+    +'                             20  EA\n'
+    +'                             G6X997.1#2';
+  runParse();
+}
+function runParse() {
+  var txt = document.getElementById('fo-txt') ? document.getElementById('fo-txt').value : '';
+  var res = parseTSMC(txt);
+  parsedItems = res.items;
+  var el = document.getElementById('fo-pr');
+  if (!el) return;
+  if (!parsedItems.length) { el.innerHTML='<div style="color:var(--red);font-size:12px;margin-bottom:8px">⚠ 파싱 결과 없음</div>'; return; }
+  el.innerHTML = renderParsedTbl(parsedItems, res.invoiceNo);
+}
+function renderParsedTbl(items, inv) {
+  var total = items.reduce(function(a,i){return a+i.qty;},0);
+  var unit = (items[0]&&items[0].unit)||'EA';
+  return '<div class="parse-ok">✅ '+items.length+'항목 파싱 완료'+(inv?' — Invoice: '+inv:'')+'</div>'
+    +'<table class="pt"><thead><tr><th>#</th><th>제품명</th><th>Chip ID</th><th style="text-align:right">수량</th><th>단위</th></tr></thead>'
+    +'<tbody>'+items.map(function(i){return '<tr><td>'+i.n+'</td><td style="font-weight:500">'+(i.name||'—')+'</td><td class="mono">'+(i.chip||'—')+'</td><td style="text-align:right">'+i.qty+'</td><td>'+i.unit+'</td></tr>';}).join('')+'</tbody>'
+    +'<tfoot><tr><td colspan="3">합계</td><td style="text-align:right">'+total+'</td><td>'+unit+'</td></tr></tfoot>'
+    +'</table>';
+}
+
+/* ── LOT MODAL ── */
+function openLot(pid, step, editId) {
+  editLotId = editId || null;
+  var p = PROJECTS.filter(function(x){return x.id===pid;})[0];
+  var netDie = p.netDie || 0;
+  ctx = {type:'lot', pid:pid, step:step, netDie:netDie, waferOuts:[]};
+  var r = editId ? RECORDS.filter(function(x){return x.id===editId;})[0] : {};
+  var existWnos = (r.waferNos && r.waferNos.length) ? r.waferNos : [];
+  var existQty = existWnos.length || r.qty || 0;
+  /* waferNos를 사람이 읽기 좋은 "1-3,5-6" 형태로 변환 */
+  var existWnosStr = existWnos.length ? w2s(existWnos).replace(/#/g,'').replace(/,\s*/g,',') : '';
+  if (editId && r.waferOuts && r.waferOuts.length) {
+    ctx.waferOuts = r.waferOuts.map(function(w){return {waferNo:w.waferNo,outQtyEa:w.outQtyEa,isScrap:w.isScrap,remark:w.remark};});
+  } else if (existWnos.length) {
+    ctx.waferOuts = existWnos.map(function(n){return {waferNo:n, outQtyEa:'', isScrap:false, remark:''};});
+  }
+  var prevIds = prevStepLotIds(pid, step);
+  var guideHtml = prevIds.length
+    ? '<div class="lid-guide">'+prevIds.map(function(id){return '<span class="lid-chip" onclick="fillLid(\''+id+'\')">'+id+'</span>';}).join('')+'</div>'
+      +'<span class="fn">↑ 이전 단계('+p.scmFlow[p.scmFlow.indexOf(step)-1]+') Lot ID — 클릭 시 자동 입력</span>'
+    : '';
+  var inEaVal = r.inQtyEa != null ? r.inQtyEa : (netDie && existQty ? existQty * netDie : '');
+  document.getElementById('lot-ttl').textContent = step+' Lot '+(editId?'편집':'등록');
+  document.getElementById('lot-body').innerHTML =
+    '<div class="msec">IN 정보</div>'
+    +'<div class="fg">'
+    +'<div class="fld"><label>Lot ID</label><input id="l-lid" class="mono" value="'+(r.lotId||'')+'" placeholder="ABC123.01"><span class="fn">영숫자 6자리 · "." · 2자리</span>'+guideHtml+'</div>'
+    +'<div class="fld"><label>Wafer No. <span class="fn">예: 1~3,5~6 (범위는 ~ 권장, - 도 가능)</span></label>'
+    +'<input id="l-wnos" class="mono" value="'+existWnosStr+'" placeholder="예: 1~3,5~6" oninput="lotWnosChange(this.value)">'
+    +'<span class="fn" id="l-wcnt">'+(existQty?'총 '+existQty+'장 입력됨':'Wafer 번호를 입력하면 아래 OUT 그리드가 생성됩니다')+'</span></div>'
+    +'</div>'
+    +'<div class="fg c3">'
+    +'<div class="fld"><label>입고일</label><input id="l-rd" type="date" value="'+(r.receiveDate||'')+'"></div>'
+    +'<div class="fld"><label>시작일</label><input id="l-sd" type="date" value="'+(r.startDate||'')+'"></div>'
+    +'<div class="fld"><label>종료일</label><input id="l-ed" type="date" value="'+(r.endDate||'')+'"></div>'
+    +'</div>'
+    +'<div class="fg">'
+    +'<div class="fld"><label>In Qty (PCS) <span class="fn">자동계산</span></label><input id="l-ip" type="number" min="0" value="'+(r.inQtyPcs!=null?r.inQtyPcs:(existQty||''))+'" class="fpre" readonly></div>'
+    +'<div class="fld"><label>In Qty (EA)'+(netDie?' <span class="fn" style="color:var(--pri)">Net Die: '+netDie+'</span>':'')+'</label><input id="l-ie" type="number" min="0" value="'+inEaVal+'" placeholder="'+(netDie?'Qty × '+netDie+' 자동계산':'직접 입력')+'"><span class="fn" id="l-ie-note" style="color:var(--pri)">'+(netDie&&existQty?'자동계산: '+existQty+'장 × '+netDie+' = '+(existQty*netDie).toLocaleString()+' EA':'')+'</span></div>'
+    +'</div>'
+    +'<div class="msec">OUT 입력 — Wafer별 <span style="font-size:10px;font-weight:400">(Good Die 수량은 Wafer마다 다를 수 있음)</span></div>'
+    +'<div id="lot-wo">'+(ctx.waferOuts.length?'':'<div style="color:var(--tx2);padding:6px 0;font-size:11px">위에서 Wafer No.를 입력하면 그리드가 생성됩니다</div>')+'</div>'
+    +'<div class="wo-sum" id="lot-sum" style="'+(ctx.waferOuts.length?'':'display:none')+'"></div>'
+    +'<div class="msec">처리 정보</div>'
+    +'<div class="fg">'
+    +'<div class="fld"><label>상태</label><select id="l-st">'+['진행중','완료','scrap'].map(function(o){return '<option'+(r.status===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
+    +'<div class="fld"><label>처리방향</label><select id="l-dr">'+['다음step','고객출하','보관','scrap','기타'].map(function(o){return '<option'+(r.direction===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
+    +'</div>'
+    +'<div class="fg c1"><div class="fld"><label>Remark</label><input id="l-rm" value="'+(r.remark||'')+'"></div></div>';
+  if (ctx.waferOuts.length) renderWoGrid();
+  openM('ov-lot');
+}
+
+function fillLid(id) { var el=document.getElementById('l-lid'); if(el) el.value=id; }
+
+function lotWnosChange(val) {
+  var nums = s2w(val);
+  var n = nums.length;
+  var cntEl = document.getElementById('l-wcnt');
+  if (cntEl) {
+    if (!n) { cntEl.textContent='Wafer 번호를 입력하면 아래 OUT 그리드가 생성됩니다'; cntEl.style.color=''; }
+    else if (n > 25) { cntEl.textContent='⚠ 최대 25장까지 가능합니다'; cntEl.style.color='var(--red)'; }
+    else { cntEl.textContent='총 '+n+'장 입력됨 ('+w2s(nums)+')'; cntEl.style.color='var(--pri)'; }
+  }
+  if (n < 1 || n > 25) return;
+  /* In Qty PCS 자동 */
+  var ipEl = document.getElementById('l-ip'); if (ipEl) ipEl.value = n;
+  /* In Qty EA 자동 (netDie) */
+  var nd = ctx.netDie || 0;
+  if (nd) {
+    var ea = n * nd;
+    var ieEl = document.getElementById('l-ie'); if (ieEl) ieEl.value = ea;
+    var nEl = document.getElementById('l-ie-note'); if (nEl) { nEl.textContent='자동계산: '+n+'장 × '+nd+' = '+ea.toLocaleString()+' EA'; nEl.style.color='var(--pri)'; }
+  }
+  /* waferOuts 재생성 (기존 값 유지) */
+  var existing = ctx.waferOuts || [];
+  ctx.waferOuts = nums.map(function(wn) {
+    var ex = existing.filter(function(w){return w.waferNo===wn;})[0];
+    return ex ? {waferNo:ex.waferNo,outQtyEa:ex.outQtyEa,isScrap:ex.isScrap,remark:ex.remark} : {waferNo:wn,outQtyEa:'',isScrap:false,remark:''};
+  });
+  renderWoGrid();
+  var sumEl = document.getElementById('lot-sum'); if (sumEl) sumEl.style.display='';
+}
+
+function renderWoGrid() {
+  var wo = ctx.waferOuts || [];
+  if (!wo.length) { document.getElementById('lot-wo').innerHTML='<div style="color:var(--tx2);padding:6px 0;font-size:11px">Wafer 수량을 먼저 입력해주세요</div>'; return; }
+  document.getElementById('lot-wo').innerHTML =
+    '<table class="wo-grid">'
+    +'<thead><tr><th style="width:65px">Wafer #</th><th>Out Good Die (EA)</th><th style="width:55px;text-align:center">Scrap</th><th>Remark</th></tr></thead>'
+    +'<tbody>'+wo.map(function(w,i){
+      return '<tr class="'+(w.isScrap?'is-scrap':'')+'" id="wo-row-'+i+'">'
+        +'<td class="mono" style="font-weight:600">#'+String(w.waferNo).padStart(2,'0')+'</td>'
+        +'<td><input type="number" id="wo-ea-'+i+'" value="'+(w.isScrap?'':w.outQtyEa||'')+'" min="0" placeholder="Good Die 수" oninput="updWo('+i+',\'ea\',this.value)"'+(w.isScrap?' disabled':'')+'></td>'
+        +'<td style="text-align:center"><input type="checkbox" id="wo-sc-'+i+'"'+(w.isScrap?' checked':'')+' onchange="updWo('+i+',\'sc\',this.checked)"></td>'
+        +'<td><input type="text" id="wo-rm-'+i+'" value="'+(w.remark||'')+'" oninput="updWo('+i+',\'rm\',this.value)"></td>'
+        +'</tr>';
+    }).join('')+'</tbody></table>';
+  updateWoSum();
+}
+
+function updWo(idx, field, val) {
+  var w = ctx.waferOuts[idx];
+  if (!w) return;
+  if (field === 'ea') { w.outQtyEa = val===''?'':Number(val); }
+  else if (field === 'sc') {
+    w.isScrap = val;
+    var row = document.getElementById('wo-row-'+idx);
+    if (row) row.className = val ? 'is-scrap' : '';
+    var inp = document.getElementById('wo-ea-'+idx);
+    if (inp) { inp.disabled = val; if (val) { inp.value=''; w.outQtyEa=''; } }
+  }
+  else if (field === 'rm') { w.remark = val; }
+  updateWoSum();
+}
+
+function updateWoSum() {
+  var wo = ctx.waferOuts || [];
+  var nd = ctx.netDie || 0;
+  var scr = wo.filter(function(w){return w.isScrap;}).length;
+  var outP = wo.filter(function(w){return !w.isScrap;}).length;
+  var outE = wo.filter(function(w){return !w.isScrap;}).reduce(function(a,w){return a+(Number(w.outQtyEa)||0);},0);
+  var ieEl = document.getElementById('l-ie');
+  var inE = ieEl ? (parseInt(ieEl.value)||0) : (nd && wo.length ? wo.length*nd : 0);
+  var rej = inE > 0 ? inE - outE : 0;
+  var yld = inE > 0 && outE > 0 ? (outE/inE*100).toFixed(2) : '';
+  var el = document.getElementById('lot-sum');
+  if (el) {
+    el.innerHTML = '<div class="wo-sum-row">'
+      +'<span class="wo-sum-lbl">Out(PCS) </span><span class="wo-sum-val">'+outP+'장</span>&nbsp;&nbsp;'
+      +'<span class="wo-sum-lbl">Out(EA) </span><span class="wo-sum-val">'+outE.toLocaleString()+'</span>&nbsp;&nbsp;'
+      +'<span class="wo-sum-lbl">Scrap </span><span class="wo-sum-val" style="color:var(--red)">'+scr+'장</span>&nbsp;&nbsp;'
+      +'<span class="wo-sum-lbl">Reject </span><span class="wo-sum-val">'+rej.toLocaleString()+'</span>'
+      +(yld?'&nbsp;&nbsp;<span class="wo-sum-lbl">YLD </span><span class="wo-sum-val">'+yld+'%</span>':'')
+      +'</div>';
+  }
+}
+
+function openLotEdit(id) { var r=RECORDS.filter(function(x){return x.id===id;})[0]; openLot(r.pid,r.step,id); }
+
+function saveLot() {
+  var waferNos = s2w(gv('l-wnos'));
+  var qty = waferNos.length;
+  if (!gv('l-lid')) { alert('Lot ID를 입력해주세요.'); return; }
+  if (qty < 1) { alert('Wafer No.를 입력해주세요. (예: 1~3,5~6)'); return; }
+  if (qty > 25) { alert('최대 25장까지 가능합니다.'); return; }
+  var wo = ctx.waferOuts || [];
+  wo.forEach(function(w,i){
+    var sc=document.getElementById('wo-sc-'+i), ea=document.getElementById('wo-ea-'+i), rm=document.getElementById('wo-rm-'+i);
+    if(sc) w.isScrap=sc.checked;
+    if(ea) w.outQtyEa=w.isScrap?'':(ea.value===''?'':Number(ea.value));
+    if(rm) w.remark=rm.value;
+  });
+  var outP = wo.filter(function(w){return !w.isScrap;}).length;
+  var outE = wo.filter(function(w){return !w.isScrap;}).reduce(function(a,w){return a+(Number(w.outQtyEa)||0);},0);
+  var inE = gn('l-ie');
+  var rej = (inE != null && outE) ? inE - outE : null;
+  var yld = (inE && outE && inE>0) ? (outE/inE*100).toFixed(2) : '';
+  var rec = {step:ctx.step, dir:'LOT', pid:ctx.pid,
+    lotId:gv('l-lid'), qty:qty, waferNos:waferNos,
+    receiveDate:gv('l-rd'), startDate:gv('l-sd'), endDate:gv('l-ed'),
+    inQtyPcs:gn('l-ip'), inQtyEa:inE,
+    waferOuts:wo.length?wo:undefined,
+    outQtyPcs:wo.length?outP:null, outQtyEa:wo.length?outE:null,
+    reject:wo.length?rej:null, yld:wo.length?yld:'',
+    status:gv('l-st'), direction:gv('l-dr'), remark:gv('l-rm')};
+  if (editLotId) { Object.assign(RECORDS.filter(function(x){return x.id===editLotId;})[0], rec); }
+  else { rec.id=nid++; RECORDS.push(rec); }
+  closeM('ov-lot'); rerender();
+}
+
+/* ── EXCEL MODAL ── */
+var TPLS = {
+  FAB_IN:{title:'FAB IN 템플릿',cols:['Ver','날짜','Lot ID','Wafer Qty (1-25)','Remark'],
+    sample:[['A','2026-04-10','FLC001.01','25',''],['A','2026-04-10','FLC001.02','25',''],['A','2026-04-10','FLC001.03','25',''],['A','2026-04-10','FLC001.04','25','']],
+    note:'Lot ID 형식: 영숫자 6자리 + "." + 2자리. Wafer No.는 Qty 기준 자동 할당. 1 Lot 최대 25장.'},
+  FAB_OUT:{title:'FAB OUT 템플릿 (다중분배)',cols:['Ver','날짜','Lot ID','Wafer No.','처리방향','상태','Remark'],
+    sample:[['A','2026-05-20','FLC001.01','1~3','고객출하','완료',''],['A','2026-05-20','FLC001.01','4~6','보관','진행중','Cont Hold'],['A','2026-05-20','FLC001.01','7','scrap','scrap','파손'],['A','2026-05-20','FLC001.01','8~25','다음step','진행중','']],
+    note:'※ Wafer Qty는 Wafer No. 기준 자동계산 (별도 입력 불필요). 범위 입력 시 ~ 사용 권장 (예: 1~3,5~20) — 엑셀에서 "-" 사용 시 날짜로 인식될 수 있음. 단일 번호는 그냥 숫자로 입력.'},
+  LOT_IN:{title:'OSAT Lot IN 템플릿',cols:['Lot ID','Wafer Qty','입고일','시작일','종료일','In(PCS)','In(EA)','상태','처리방향','Remark'],
+    sample:[['ANA384.01','5','2026-05-01','2026-05-03','2026-05-20','5','4250','완료','고객출하',''],['ANA384.02','5','2026-05-01','2026-05-03','','5','4250','진행중','다음step','']],
+    note:'Lot ID 형식: 영숫자 6자리 + "." + 2자리. In(EA)는 Qty × Net Die 자동계산 가능.'},
+  LOT_OUT:{title:'OSAT Lot OUT 템플릿 (Wafer별 1행)',cols:['Lot ID','Wafer No.','Out Good Die (EA)','Is Scrap (Y/N)','Remark'],
+    sample:[['ANA384.01','1','838','N',''],['ANA384.01','2','841','N',''],['ANA384.01','3','0','Y','파손'],['ANA384.01','4','845','N',''],['ANA384.01','5','840','N','']],
+    note:'Wafer 1장 = 1행. Wafer No. 열은 숫자만 입력 (단일 번호). Good Die가 Wafer마다 다를 경우 사용.'}
+};
+
+function openXl(pid, step) {
+  ctx = {type:'xl', pid:pid, step:step};
+  excelRows = [];
+  var isFab = step === 'FAB';
+  document.getElementById('xl-ttl').textContent = step+' Excel 업로드';
+  document.getElementById('xl-save').style.display = 'none';
+  document.getElementById('xl-body').innerHTML =
+    '<div class="msec">업로드 종류 선택</div>'
+    +'<div style="display:flex;gap:7px;margin-bottom:10px;flex-wrap:wrap">'
+    +(isFab
+      ?'<button class="btn ghost" id="xm-fi" onclick="setXm(\'FAB_IN\')">FAB IN</button><button class="btn ghost" id="xm-fo" onclick="setXm(\'FAB_OUT\')">FAB OUT</button>'
+      :'<button class="btn ghost" id="xm-li" onclick="setXm(\'LOT_IN\')">Lot IN</button><button class="btn ghost" id="xm-lo" onclick="setXm(\'LOT_OUT\')">Lot OUT (Wafer별)</button>')
+    +'</div>'
+    +'<div id="xl-tpl"></div>'
+    +'<div class="msec">파일 업로드</div>'
+    +'<div class="upa" onclick="document.getElementById(\'xl-f\').click()">'
+    +'<input type="file" id="xl-f" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleXl(this)">'
+    +'<div class="upa-t">📂 파일 선택</div>'
+    +'<div class="upa-s">.xlsx / .xls / .csv &nbsp;|&nbsp; <a onclick="event.stopPropagation();demoXl()">데모 데이터 로드</a></div>'
+    +'</div>'
+    +'<div id="xl-prev"></div>';
+  openM('ov-xl');
+  setXm(isFab ? 'FAB_IN' : 'LOT_IN');
+}
+
+function setXm(mode) {
+  ctx.xlMode = mode;
+  ['FAB_IN','FAB_OUT','LOT_IN','LOT_OUT'].forEach(function(m) {
+    var key = m.toLowerCase().replace('_','-');
+    var el = document.getElementById('xm-'+key.split('-').map(function(p,i){return i===0?p[0]:p[0];}).join(''));
+    // simpler: use the first 2 chars
+  });
+  // re-style buttons
+  ['xm-fi','xm-fo','xm-li','xm-lo'].forEach(function(id){
+    var el=document.getElementById(id); if(el){el.className='btn ghost';}
+  });
+  var modeToBtn={'FAB_IN':'xm-fi','FAB_OUT':'xm-fo','LOT_IN':'xm-li','LOT_OUT':'xm-lo'};
+  var btn = document.getElementById(modeToBtn[mode]);
+  if (btn) btn.className = 'btn pri';
+  var t = TPLS[mode];
+  document.getElementById('xl-tpl').innerHTML =
+    '<div class="tpb"><div class="tpb-hd"><span>📋 '+t.title+'</span><button class="btn ghost xs" onclick="copyHdr(\''+mode+'\')">헤더 복사</button></div>'
+    +'<div style="overflow-x:auto"><table class="tpt"><thead><tr>'+t.cols.map(function(c){return '<th>'+c+'</th>';}).join('')+'</tr></thead>'
+    +'<tbody>'+t.sample.map(function(row){return '<tr>'+row.map(function(c){return '<td>'+(c||'—')+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div>'
+    +'<div class="tpn">'+t.note+'</div></div>';
+  document.getElementById('xl-prev').innerHTML='';
+  document.getElementById('xl-save').style.display='none';
+  excelRows=[];
+}
+
+function copyHdr(mode){
+  var t=TPLS[mode];
+  navigator.clipboard.writeText(t.cols.join('\t')).then(function(){alert('헤더 복사 완료');});
+}
+function handleXl(inp) {
+  var file = inp.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:true});
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var raw = XLSX.utils.sheet_to_json(ws, {defval:'', raw:false, dateNF:'yyyy-mm-dd'});
+      if (!raw.length) { alert('파일에 데이터가 없습니다.'); return; }
+      var mode = ctx.xlMode || 'FAB_IN';
+      var expectedCols = TPLS[mode].cols;
+      excelRows = raw.map(function(r) {
+        var out = {};
+        Object.keys(r).forEach(function(k) {
+          var v = r[k];
+          out[k.trim()] = (typeof v === 'string') ? v.trim() : (v == null ? '' : String(v));
+        });
+        return out;
+      });
+      var t = TPLS[mode];
+      document.getElementById('xl-prev').innerHTML =
+        '<div class="parse-ok" style="margin:8px 0 5px">✅ ' + excelRows.length + '건 로드됨 ('+file.name+')</div>'
+        + '<table class="pt"><thead><tr>' + expectedCols.map(function(c){return '<th>'+c+'</th>';}).join('') + '</tr></thead>'
+        + '<tbody>' + excelRows.map(function(r){
+            return '<tr>' + expectedCols.map(function(c){return '<td>'+(r[c]||'—')+'</td>';}).join('') + '</tr>';
+          }).join('') + '</tbody></table>';
+      document.getElementById('xl-save').style.display = 'inline-block';
+    } catch(err) {
+      alert('파일 읽기 실패: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function demoXl(){
+  var mode=ctx.xlMode||'FAB_IN';
+  var t=TPLS[mode];
+  excelRows=t.sample.map(function(row){var o={};t.cols.forEach(function(c,i){o[c]=row[i];});return o;});
+  document.getElementById('xl-prev').innerHTML=
+    '<div class="parse-ok" style="margin:8px 0 5px">✅ '+excelRows.length+'건 로드됨</div>'
+    +'<table class="pt"><thead><tr>'+t.cols.map(function(c){return '<th>'+c+'</th>';}).join('')+'</tr></thead>'
+    +'<tbody>'+excelRows.map(function(r){return '<tr>'+t.cols.map(function(c){return '<td>'+(r[c]||'—')+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table>';
+  document.getElementById('xl-save').style.display='inline-block';
+}
+
+function saveExcel(){
+  var mode=ctx.xlMode;
+  if(mode==='FAB_IN'){
+    excelRows.forEach(function(r){
+      var qty=parseInt(r['Wafer Qty (1-25)'])||0;
+      if(qty<1||qty>25) return;
+      var wns=[]; for(var i=1;i<=qty;i++) wns.push(i);
+      RECORDS.push({id:nid++,pid:ctx.pid,step:'FAB',dir:'IN',ver:r['Ver']||'A',date:r['날짜'],lotId:r['Lot ID'],qty:qty,waferNos:wns,remark:r['Remark']||''});
+    });
+  } else if(mode==='FAB_OUT'){
+    excelRows.forEach(function(r){
+      var lid=r['Lot ID'];
+      var pIn=RECORDS.filter(function(x){return x.pid===ctx.pid&&x.step==='FAB'&&x.dir==='IN'&&x.lotId===lid;})[0];
+      if(!pIn){return;}
+      var nums=s2w(r['Wafer No.']||'');
+      if(!nums.length) return;
+      RECORDS.push({id:nid++,pid:ctx.pid,step:'FAB',dir:'OUT',parentId:pIn.id,ver:r['Ver']||'A',date:r['날짜'],lotId:lid,qty:nums.length,waferNos:nums,direction:r['처리방향']||'다음step',status:r['상태']||'완료',reject:null,yld:'',remark:r['Remark']||''});
+    });
+  } else if(mode==='LOT_IN'){
+    excelRows.forEach(function(r){
+      var qty=parseInt(r['Wafer Qty'])||0;
+      var nd=parseInt((PROJECTS.filter(function(p){return p.id===ctx.pid;})[0]||{}).netDie)||0;
+      var inEa=r['In(EA)']?Number(r['In(EA)']):(nd&&qty?qty*nd:null);
+      var wns=[]; for(var i=1;i<=qty;i++) wns.push(i);
+      RECORDS.push({id:nid++,pid:ctx.pid,step:ctx.step,dir:'LOT',lotId:r['Lot ID'],qty:qty,waferNos:wns,receiveDate:r['입고일'],startDate:r['시작일'],endDate:r['종료일'],inQtyPcs:r['In(PCS)']?Number(r['In(PCS)']):qty,inQtyEa:inEa,waferOuts:[],outQtyPcs:null,outQtyEa:null,reject:null,yld:'',status:r['상태']||'진행중',direction:r['처리방향']||'다음step',remark:r['Remark']||''});
+    });
+  } else if(mode==='LOT_OUT'){
+    var grouped={};
+    excelRows.forEach(function(r){var lid=r['Lot ID'];if(!grouped[lid])grouped[lid]=[];grouped[lid].push(r);});
+    Object.keys(grouped).forEach(function(lid){
+      var rows=grouped[lid];
+      var rec=RECORDS.filter(function(x){return x.pid===ctx.pid&&x.step===ctx.step&&x.dir==='LOT'&&x.lotId===lid;})[0];
+      if(!rec) return;
+      var wo=rows.map(function(r){var sc=(r['Is Scrap (Y/N)']||'').toUpperCase()==='Y';return {waferNo:parseInt(r['Wafer No.'])||0,outQtyEa:sc?'':Number(r['Out Good Die (EA)'])||0,isScrap:sc,remark:r['Remark']||''};}).filter(function(w){return w.waferNo>0;});
+      var outP=wo.filter(function(w){return !w.isScrap;}).length;
+      var outE=wo.filter(function(w){return !w.isScrap;}).reduce(function(a,w){return a+(Number(w.outQtyEa)||0);},0);
+      var inE=rec.inQtyEa||0;
+      var rej=inE>0?inE-outE:null;
+      var yld=inE>0&&outE>0?(outE/inE*100).toFixed(2):'';
+      Object.assign(rec,{waferOuts:wo,outQtyPcs:outP,outQtyEa:outE,reject:rej,yld:yld});
+    });
+  }
+  closeM('ov-xl'); rerender();
+}
+
+/* ── INIT ── */
+renderSidebar();
+</script>
+</body>
+</html>
