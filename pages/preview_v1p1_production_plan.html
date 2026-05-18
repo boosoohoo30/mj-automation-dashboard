@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>생산관리 - 생산계획</title>
+<style>
+:root{
+  --color-text-primary:#1a1917;--color-text-secondary:#6b6a66;
+  --color-background-primary:#fff;--color-background-secondary:#f5f4f0;
+  --color-border-primary:#b0afa9;--color-border-secondary:#d0cfc9;--color-border-tertiary:#e5e4df;
+  --font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --font-mono:'SF Mono','Fira Code',monospace;
+  --border-radius-sm:4px;--border-radius-md:6px;--border-radius-lg:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-size:14px;color:var(--color-text-primary);font-family:var(--font-sans);background:#f5f4f0}
+.shell{max-width:1200px;margin:0 auto;padding:24px 32px;background:#fff;min-height:100vh}
+.page-title{font-size:18px;font-weight:600;margin-bottom:20px}
+
+/* 검색 */
+.search-box{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:16px 20px;margin-bottom:18px}
+.search-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:5px;font-weight:500}
+.search-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:12px}
+.search-actions{display:flex;justify-content:flex-end;gap:8px}
+input.si,select.si{width:100%;padding:6px 10px;font-size:12px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary)}
+input.si:focus,select.si:focus{outline:none;border-color:#185FA5}
+
+/* 버튼 */
+.btn{padding:6px 14px;font-size:13px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);cursor:pointer;background:var(--color-background-primary);color:var(--color-text-primary)}
+.btn:hover{background:var(--color-background-secondary)}
+.btn.sm{padding:4px 10px;font-size:12px}
+.btn.primary{background:#185FA5;color:#fff;border-color:#185FA5}
+.btn.primary:hover{background:#0E4A85}
+.btn.save-all{background:#3B6D11;color:#fff;border-color:#3B6D11;padding:8px 22px;font-size:13px}
+.btn.save-all:hover{background:#27500A}
+.btn.reset{background:var(--color-background-primary);color:var(--color-text-secondary)}
+
+/* 요약카드 */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.metric{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:12px 16px;border:0.5px solid var(--color-border-tertiary)}
+.metric-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px}
+.metric-val{font-size:22px;font-weight:600}
+.metric-sub{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+
+/* 툴바 */
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.toolbar-left{font-size:12px;color:var(--color-text-secondary)}
+.toolbar-sep{color:var(--color-border-secondary);margin:0 4px}
+.col-toggle-group{display:flex;gap:4px;margin-left:auto}
+.col-toggle{padding:3px 10px;font-size:12px;border:0.5px solid var(--color-border-secondary);border-radius:20px;cursor:pointer;background:var(--color-background-primary);color:var(--color-text-secondary)}
+.col-toggle.on{background:#E6F1FB;color:#185FA5;border-color:#185FA5}
+
+/* 테이블 */
+.tbl-outer{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;margin-bottom:16px}
+table.main{width:100%;border-collapse:collapse;font-size:12px}
+table.main th{padding:6px 10px;text-align:left;font-weight:500;font-size:11px;color:var(--color-text-secondary);background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary);white-space:nowrap;text-transform:uppercase;letter-spacing:.03em}
+table.main td{padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap}
+
+/* 행 유형별 스타일 */
+.row-draft td{background:#fafaf8;font-weight:500}
+.row-draft:hover td{background:#f0efe9}
+.row-rfq td{background:var(--color-background-primary);color:var(--color-text-secondary);font-size:11px}
+.row-muldae td{background:var(--color-background-primary)}
+.row-muldae td:first-child{border-left:2.5px solid #27B26E}
+.row-muldae:hover td{background:#f8fdf5}
+.row-detail td{background:var(--color-background-primary)}
+.row-detail.dim td{opacity:.55}
+.row-detail:hover td{background:var(--color-background-secondary)}
+.row-toggle td{background:var(--color-background-primary);cursor:pointer}
+.row-toggle:hover td{background:var(--color-background-secondary)}
+
+/* 배지 */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.b-fab{background:#E6F1FB;color:#0C447C}
+.b-osat{background:#FAEEDA;color:#7A3D00}
+.b-ip{background:#F0EEFF;color:#4A3AAA}
+.b-dps{background:#F1EFE8;color:#5F5E5A}
+.b-shinchung{background:#E6F1FB;color:#185FA5}
+.b-contract{background:#EAF3DE;color:#27500A}
+.b-pm{background:#FEF3E2;color:#92400E;font-size:10px;padding:1px 6px}
+.b-pm-none{background:#F1EFE8;color:#9b9a96;font-size:10px;padding:1px 6px}
+.b-saved{background:#EAF3DE;color:#27500A}
+.b-partial{background:#FEF3E2;color:#92400E}
+.b-none{background:#F1EFE8;color:#5F5E5A}
+.b-manual{background:#F1EFE8;color:#5F5E5A;border:0.5px dashed var(--color-border-secondary)}
+.mono{font-family:var(--font-mono);font-size:11px}
+
+/* Start Qty 입력 */
+.qty-input{width:90px;padding:4px 8px;font-size:12px;text-align:right;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary)}
+.qty-input:focus{outline:none;border-color:#185FA5}
+.qty-input.modified{border-color:#D97706;background:#FFFBEB}
+.qty-input.saved-modified{border-color:#D97706}
+.qty-cell{display:flex;align-items:center;gap:5px}
+.history-dot{width:7px;height:7px;border-radius:50%;background:#D97706;cursor:pointer;flex-shrink:0;position:relative}
+.history-tip{display:none;position:absolute;top:14px;left:0;background:#1a1917;color:#fff;font-size:11px;padding:6px 10px;border-radius:var(--border-radius-md);white-space:nowrap;z-index:50;min-width:180px}
+.history-dot:hover .history-tip{display:block}
+
+/* 견적상세 토글 */
+.toggle-row-label{display:flex;align-items:center;gap:5px;color:var(--color-text-secondary);font-size:11px;cursor:pointer;user-select:none;padding:1px 0}
+.toggle-arrow{font-size:11px;transition:transform .15s;display:inline-block}
+.toggle-arrow.open{transform:rotate(90deg)}
+
+/* 하단 액션바 */
+.action-bar{display:flex;justify-content:flex-end;gap:8px;padding-top:4px}
+
+/* 모달 */
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:200;display:none;align-items:center;justify-content:center}
+.backdrop.open{display:flex}
+.modal{background:var(--color-background-primary);border-radius:var(--border-radius-lg);border:.5px solid var(--color-border-tertiary);width:420px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.14)}
+.modal-header{padding:14px 20px;border-bottom:.5px solid var(--color-border-tertiary);font-size:14px;font-weight:500}
+.modal-body{padding:16px 20px}
+.modal-footer{padding:12px 20px;border-top:.5px solid var(--color-border-tertiary);display:flex;justify-content:flex-end;gap:8px}
+.modal-desc{font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.5}
+.modal-label{font-size:11px;font-weight:500;color:var(--color-text-secondary);margin-bottom:5px}
+textarea.reason-input{width:100%;height:72px;padding:8px 10px;font-size:12px;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);resize:none;font-family:var(--font-sans)}
+textarea.reason-input:focus{outline:none;border-color:#185FA5}
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="page-title">생산관리 — 생산계획</div>
+
+<!-- 검색 -->
+<div class="search-box">
+  <div class="search-grid">
+    <div><div class="search-label">Customer</div><input class="si" id="f-cust" placeholder="고객사명" oninput="render()"></div>
+    <div><div class="search-label">Project</div><input class="si" id="f-proj" placeholder="프로젝트명" oninput="render()"></div>
+    <div><div class="search-label">매출기안#</div><input class="si" id="f-draft" placeholder="AS-영업X팀-XXXXXX" oninput="render()"></div>
+    <div><div class="search-label">PM</div><input class="si" id="f-pm" placeholder="PM 이름" oninput="render()"></div>
+    <div><div class="search-label">AM</div>
+      <select class="si" id="f-am" onchange="render()">
+        <option value="">전체</option>
+        <option>DJ</option><option>SY</option><option>JH</option>
+      </select>
+    </div>
+  </div>
+  <div class="search-actions">
+    <button class="btn sm reset" onclick="resetSearch()">초기화</button>
+    <button class="btn sm primary" onclick="render()">검색</button>
+  </div>
+</div>
+
+<!-- 요약카드 -->
+<div class="metrics" id="metrics"></div>
+
+<!-- 툴바 -->
+<div class="toolbar">
+  <span class="toolbar-left">물대 요약 행 — Start Qty 입력</span>
+  <span class="toolbar-sep">|</span>
+  <span class="toolbar-left" style="color:var(--color-text-primary)">▶ 클릭하면 전체 견적 항목 표시</span>
+  <div class="col-toggle-group">
+    <span style="font-size:11px;color:var(--color-text-secondary);margin-right:4px">컬럼 표시:</span>
+    <button class="col-toggle on" id="tog-vendor" onclick="toggleCol('vendor')">업체명</button>
+    <button class="col-toggle" id="tog-rfqQty" onclick="toggleCol('rfqQty')">RFQ Qty</button>
+    <button class="col-toggle" id="tog-price" onclick="toggleCol('price')">판가($)</button>
+  </div>
+</div>
+
+<!-- 테이블 -->
+<div class="tbl-outer">
+  <table class="main" id="mainTable">
+    <thead id="thead"></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div class="action-bar">
+  <button class="btn" onclick="cancelAll()">취소</button>
+  <button class="btn save-all" onclick="saveAll()">Start Qty 저장</button>
+</div>
+</div>
+
+<!-- 변경사유 모달 -->
+<div class="backdrop" id="backdrop">
+  <div class="modal">
+    <div class="modal-header">Start Qty 변경</div>
+    <div class="modal-body">
+      <div class="modal-desc" id="modal-desc"></div>
+      <div class="modal-label">변경 사유 <span style="color:#A32D2D;font-size:10px">*</span></div>
+      <textarea class="reason-input" id="modal-reason" placeholder="변경 사유를 입력해주세요 (예: 추가계약 2매)"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn sm" onclick="cancelReason()">취소</button>
+      <button class="btn sm primary" onclick="confirmReason()">확인</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 데이터 ────────────────────────────────────────────────────────────────
+const DRAFTS = [
+  { id:1, draftNo:'AS-영업1팀-251014-003', team:'DJ', customer:'Uniqconn', project:'UC60Plus C4',
+    alCode:'BX4K72A', pm:'JH', salesStatus:'기안상신',
+    rfqs:[
+      { id:1, rfqNo:'RFQ-260423-001', title:'65nm MSRF GP+ 1.0/2.5V',
+        items:[
+          {id:1,isMulDae:true, vendor:'TSMC',  stage:'FAB',      cls1:'MPW',   cls2:'Cyber Shuttle',cls3:'Block Portion',  rfqQty:null, isMpw:true},
+          {id:2,isMulDae:false,vendor:'TSMC',  stage:'FAB',      cls1:'MPW',   cls2:'Cyber Shuttle',cls3:'Extra Wafer Fee',rfqQty:null},
+          {id:3,isMulDae:false,vendor:'TSMC',  stage:'FAB',      cls1:'MPW',   cls2:'Cyber Shuttle',cls3:'Extra Die Saw',  rfqQty:null},
+          {id:4,isMulDae:false,vendor:'DPS',   stage:'내부인건비',cls1:'DPS',  cls2:'DFT',          cls3:'CL1',            rfqQty:null},
+        ]
+      }
+    ]
+  },
+  { id:2, draftNo:'AS-영업1팀-260101-001', team:'SY', customer:'Fadu', project:'Albatross_N1B',
+    alCode:'TR9M21A', pm:null, salesStatus:'기안상신',
+    rfqs:[
+      { id:2, rfqNo:'RFQ-260301-001', title:'180nm LOGIC',
+        items:[
+          {id:5,isMulDae:true, vendor:'TSMC',stage:'FAB',cls1:'Single',cls2:'Wafer Buy',cls3:'Pilot Wafer',rfqQty:6},
+          {id:6,isMulDae:false,vendor:'TSMC',stage:'FAB',cls1:'Single',cls2:'Wafer Buy',cls3:'Mask Set',   rfqQty:null},
+          {id:7,isMulDae:false,vendor:'DI',  stage:'내부인건비',cls1:'DI 과건',cls2:'PI',cls3:'CL1',       rfqQty:null},
+        ]
+      },
+      { id:3, rfqNo:'RFQ-260301-002', title:'180nm LOGIC',
+        items:[
+          {id:8,isMulDae:false,vendor:'ANDES',stage:'IP',cls1:'Demonstration',cls2:'OSC',cls3:'Crystal OSC',rfqQty:null},
+        ]
+      }
+    ]
+  },
+  { id:3, draftNo:'AS-영업1팀(Sales 1 Team)-260407-003', team:'DJ', customer:'Uniqconn', project:'UC60Plus C4',
+    alCode:'BX4K72A', pm:'JH', salesStatus:'계약완료',
+    rfqs:[
+      { id:4, rfqNo:'RFQ-260202-001', title:'65nm MSRF GP+ 1.0/2.5V',
+        items:[
+          {id:9, isMulDae:true, vendor:'ATK4',stage:'OSAT_PKG',cls1:'FCCSP',cls2:'ASSEMBLY',cls3:'Assy Price; 양산',rfqQty:1600},
+          {id:10,isMulDae:true, vendor:'ATK4',stage:'OSAT_PKG',cls1:'FCCSP',cls2:'BUMP',    cls3:'Bumping',        rfqQty:1600},
+          {id:11,isMulDae:false,vendor:'ATK4',stage:'OSAT_PKG',cls1:'FCCSP',cls2:'ASSEMBLY',cls3:'Assy Lot Charge',rfqQty:null},
+          {id:12,isMulDae:false,vendor:'DPS', stage:'내부인건비',cls1:'SoC', cls2:'SoC',    cls3:'CL1',            rfqQty:null},
+        ]
+      }
+    ]
+  },
+];
+
+// 저장된 Start Qty: itemId → {qty, savedAt}
+const SAVED = {
+  9:  {qty:1600, savedAt:'2026-04-10'},
+  10: {qty:1600, savedAt:'2026-04-10'},
+};
+// 변경이력: itemId → [{prev, next, reason, date}]
+const HISTORY = {};
+
+// 현재 입력 중인 값: itemId → string
+const INPUTS = {};
+
+// 열린 견적 상세 토글: rfqId set
+const OPEN_DETAILS = new Set();
+
+// 컬럼 표시 상태
+const SHOW_COLS = {vendor:true, rfqQty:false, price:false};
+
+// 변경사유 모달 컨텍스트
+let reasonCtx = null;
+
+// ── 초기 입력값 세팅 ──────────────────────────────────────────────────────
+DRAFTS.forEach(d=>d.rfqs.forEach(r=>r.items.forEach(it=>{
+  if(!it.isMulDae) return;
+  if(SAVED[it.id] !== undefined){
+    INPUTS[it.id] = String(SAVED[it.id].qty);
+  } else if(!it.isMpw && it.rfqQty !== null){
+    INPUTS[it.id] = String(it.rfqQty);
+  } else {
+    INPUTS[it.id] = '';
+  }
+})));
+
+// ── 헬퍼 ─────────────────────────────────────────────────────────────────
+function stageBadge(s){
+  const map={'FAB':'b-fab','OSAT_PKG':'b-osat','IP':'b-ip','내부인건비':'b-dps'};
+  return`<span class="badge ${map[s]||'b-dps'}">${s}</span>`;
+}
+function savedStatus(draftId){
+  const allItems=[];
+  const d=DRAFTS.find(x=>x.id===draftId);
+  d.rfqs.forEach(r=>r.items.filter(i=>i.isMulDae).forEach(i=>allItems.push(i)));
+  if(!allItems.length) return null;
+  const saved=allItems.filter(i=>SAVED[i.id]!==undefined||INPUTS[i.id]);
+  if(saved.length===allItems.length) return'저장완료';
+  if(saved.length>0) return'일부등록';
+  return'미지정';
+}
+
+// ── 필터된 drafts ─────────────────────────────────────────────────────────
+function filtered(){
+  const fc=v=>document.getElementById(v)?.value.toLowerCase()||'';
+  const cust=fc('f-cust'),proj=fc('f-proj'),draft=fc('f-draft'),pm=fc('f-pm'),am=fc('f-am');
+  return DRAFTS.filter(d=>{
+    if(cust&&!d.customer.toLowerCase().includes(cust))return false;
+    if(proj&&!d.project.toLowerCase().includes(proj))return false;
+    if(draft&&!d.draftNo.toLowerCase().includes(draft))return false;
+    if(pm&&(d.pm||'').toLowerCase()!==pm&&!(d.pm||'').toLowerCase().includes(pm))return false;
+    if(am&&d.team!==am)return false;
+    return true;
+  });
+}
+
+// ── 메트릭 ────────────────────────────────────────────────────────────────
+function renderMetrics(list){
+  const totalProj=new Set(list.map(d=>d.project)).size;
+  const mulDaeItems=list.flatMap(d=>d.rfqs.flatMap(r=>r.items.filter(i=>i.isMulDae)));
+  const savedCount=mulDaeItems.filter(i=>SAVED[i.id]!==undefined).length;
+  const noneCount=mulDaeItems.filter(i=>SAVED[i.id]===undefined&&!(INPUTS[i.id])).length;
+  document.getElementById('metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">대상 과제</div><div class="metric-val">${totalProj}</div><div class="metric-sub">건</div></div>
+    <div class="metric"><div class="metric-label">물대 항목</div><div class="metric-val">${mulDaeItems.length}</div><div class="metric-sub">행</div></div>
+    <div class="metric"><div class="metric-label">Start Qty 저장완료</div><div class="metric-val" style="color:#27500A">${savedCount}</div><div class="metric-sub">행</div></div>
+    <div class="metric"><div class="metric-label">미지정</div><div class="metric-val" style="color:#5F5E5A">${mulDaeItems.length-savedCount}</div><div class="metric-sub">행</div></div>
+  `;
+}
+
+// ── 메인 렌더 ─────────────────────────────────────────────────────────────
+function render(){
+  const list=filtered();
+  renderMetrics(list);
+
+  // 헤더
+  document.getElementById('thead').innerHTML=`<tr>
+    <th style="width:320px">매출기안 / RFQ#</th>
+    <th style="width:40px">AM</th>
+    ${SHOW_COLS.vendor?'<th style="width:70px">업체명</th>':''}
+    <th style="width:80px">단계</th>
+    <th style="width:90px">분류1</th>
+    <th style="width:110px">분류2</th>
+    <th style="width:130px">분류3</th>
+    <th style="width:60px;text-align:center">견적보유</th>
+    ${SHOW_COLS.rfqQty?'<th style="width:70px;text-align:right">RFQ Qty</th>':''}
+    ${SHOW_COLS.price?'<th style="width:70px;text-align:right">판가($)</th>':''}
+    <th style="width:110px;text-align:right">Start Qty</th>
+    <th style="width:70px">상태</th>
+  </tr>`;
+
+  const rows=[];
+  list.forEach(d=>{
+    const st=savedStatus(d.id);
+    const stBadge=st==='저장완료'?'<span class="badge b-saved">저장완료</span>':
+                   st==='일부등록'?'<span class="badge b-partial">일부등록</span>':
+                   '<span class="badge b-none">미지정</span>';
+    const pmBadge=d.pm?`<span class="badge b-pm">PM: ${d.pm}</span>`:'<span class="badge b-pm-none">PM 미지정</span>';
+    const salesBadge=d.salesStatus==='계약완료'?'<span class="badge b-contract">계약완료</span>':'<span class="badge b-shinchung">기안상신</span>';
+    const totalCols=4+(SHOW_COLS.vendor?1:0)+(SHOW_COLS.rfqQty?1:0)+(SHOW_COLS.price?1:0)+2;
+
+    rows.push(`<tr class="row-draft">
+      <td colspan="${totalCols}" style="padding:8px 12px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:12px;font-weight:600">${d.draftNo}</span>
+          <span style="color:var(--color-text-secondary);font-size:12px">· ${d.team} · ${d.customer} · ${d.project}</span>
+          ${pmBadge}
+          <span style="margin-left:auto">${salesBadge}</span>
+        </div>
+      </td>
+    </tr>`);
+
+    d.rfqs.forEach(r=>{
+      const mulDaeRows=r.items.filter(i=>i.isMulDae);
+      const detailRows=r.items;
+      const isOpen=OPEN_DETAILS.has(r.id);
+
+      rows.push(`<tr class="row-rfq">
+        <td colspan="${totalCols}" style="padding:6px 12px">
+          <span style="font-size:11px;color:#185FA5;font-weight:500">${r.rfqNo}</span>
+          <span style="margin-left:8px;color:var(--color-text-secondary)">${r.title}</span>
+        </td>
+      </tr>`);
+
+      // 물대 행
+      mulDaeRows.forEach(it=>{
+        const savedVal=SAVED[it.id];
+        const curInput=INPUTS[it.id]||'';
+        const isModified=savedVal!==undefined && String(savedVal.qty)!==curInput && curInput!=='';
+        const hasHistory=HISTORY[it.id]&&HISTORY[it.id].length>0;
+        const inputCls='qty-input'+(isModified?' saved-modified':curInput&&curInput!==String(savedVal?.qty||'')?' modified':'');
+
+        let statusBadge;
+        if(savedVal){
+          statusBadge=`<span class="badge b-saved">저장완료</span>`;
+        } else if(curInput){
+          statusBadge=`<span class="badge b-partial" style="font-size:10px">미저장</span>`;
+        } else if(it.isMpw){
+          statusBadge=`<span class="badge b-manual">수기입력</span>`;
+        } else {
+          statusBadge=`<span class="badge b-none">미지정</span>`;
+        }
+
+        const historyDot=hasHistory?`<div class="history-dot" title="변경이력"><div class="history-tip">${HISTORY[it.id].map(h=>`${h.date}: ${h.prev}→${h.next} (${h.reason})`).join('<br>')}</div></div>`:'';
+
+        rows.push(`<tr class="row-muldae">
+          <td></td>
+          <td></td>
+          ${SHOW_COLS.vendor?`<td style="font-size:11px;font-weight:500">${it.vendor}</td>`:''}
+          <td>${stageBadge(it.stage)}</td>
+          <td>${it.cls1}</td>
+          <td>${it.cls2}</td>
+          <td style="font-weight:500">${it.cls3}</td>
+          <td style="text-align:center">—</td>
+          ${SHOW_COLS.rfqQty?`<td style="text-align:right;font-size:12px">${it.rfqQty??'—'}</td>`:''}
+          ${SHOW_COLS.price?'<td style="text-align:right">—</td>':''}
+          <td style="text-align:right">
+            <div class="qty-cell" style="justify-content:flex-end">
+              ${historyDot}
+              <input class="${inputCls}" type="number" min="0"
+                value="${curInput}"
+                placeholder="${it.isMpw?'수기입력':it.rfqQty??''}"
+                data-id="${it.id}"
+                data-rfq="${r.id}"
+                oninput="onQtyInput(${it.id},this.value)"
+                onchange="onQtyChange(${it.id},this.value)">
+            </div>
+          </td>
+          <td>${statusBadge}</td>
+        </tr>`);
+      });
+
+      // 견적 상세 토글
+      if(r.items.length > mulDaeRows.length || r.items.length > 0){
+        rows.push(`<tr class="row-toggle" onclick="toggleDetail(${r.id})">
+          <td colspan="${totalCols}" style="padding:5px 12px 5px 28px">
+            <span class="toggle-row-label">
+              <span class="toggle-arrow${isOpen?' open':''}">▶</span>
+              견적 상세 ${r.items.length}건 보기
+            </span>
+          </td>
+        </tr>`);
+
+        if(isOpen){
+          detailRows.forEach(it=>{
+            const isMd=it.isMulDae;
+            rows.push(`<tr class="row-detail${isMd?'':' dim'}">
+              <td></td>
+              <td></td>
+              ${SHOW_COLS.vendor?`<td style="font-size:11px">${it.vendor}</td>`:''}
+              <td>${stageBadge(it.stage)}</td>
+              <td>${it.cls1}</td>
+              <td>${it.cls2}</td>
+              <td style="${isMd?'font-weight:500':''}">${it.cls3}</td>
+              <td style="text-align:center">—</td>
+              ${SHOW_COLS.rfqQty?`<td style="text-align:right;font-size:12px">${it.rfqQty??'—'}</td>`:''}
+              ${SHOW_COLS.price?'<td style="text-align:right">—</td>':''}
+              <td></td>
+              <td></td>
+            </tr>`);
+          });
+        }
+      }
+    });
+  });
+
+  document.getElementById('tbody').innerHTML=rows.join('');
+}
+
+// ── 입력 핸들러 ───────────────────────────────────────────────────────────
+function onQtyInput(id, val){
+  INPUTS[id]=val;
+  // 테두리 색 즉시 반영
+  const el=document.querySelector(`input[data-id="${id}"]`);
+  if(!el) return;
+  const saved=SAVED[id];
+  if(saved && String(saved.qty)!==val && val!==''){
+    el.className='qty-input saved-modified';
+  } else if(val && (!saved || String(saved.qty)===val)){
+    el.className='qty-input';
+  } else if(val){
+    el.className='qty-input modified';
+  } else {
+    el.className='qty-input';
+  }
+}
+
+function onQtyChange(id, val){
+  // 기존 저장값이 있고 값이 달라졌다면 사유 팝업
+  const saved=SAVED[id];
+  if(saved && val && String(saved.qty)!==val){
+    openReason(id, saved.qty, val);
+  }
+}
+
+// ── 변경사유 모달 ──────────────────────────────────────────────────────────
+function openReason(id, prevQty, newQty){
+  reasonCtx={id, prevQty, newQty};
+  document.getElementById('modal-desc').innerHTML=
+    `<strong>${prevQty} PCS</strong> → <strong>${newQty} PCS</strong> 로 변경됩니다.<br>변경 사유를 입력해주세요.`;
+  document.getElementById('modal-reason').value='';
+  document.getElementById('backdrop').classList.add('open');
+  setTimeout(()=>document.getElementById('modal-reason').focus(),50);
+}
+function cancelReason(){
+  // 원래 값 복원
+  if(reasonCtx){
+    INPUTS[reasonCtx.id]=String(reasonCtx.prevQty);
+    const el=document.querySelector(`input[data-id="${reasonCtx.id}"]`);
+    if(el){el.value=reasonCtx.prevQty;el.className='qty-input';}
+  }
+  reasonCtx=null;
+  document.getElementById('backdrop').classList.remove('open');
+}
+function confirmReason(){
+  const reason=document.getElementById('modal-reason').value.trim();
+  if(!reason){document.getElementById('modal-reason').style.borderColor='#A32D2D';return;}
+  const{id,prevQty,newQty}=reasonCtx;
+  if(!HISTORY[id]) HISTORY[id]=[];
+  HISTORY[id].push({prev:prevQty, next:newQty, reason, date:new Date().toISOString().slice(0,10)});
+  INPUTS[id]=String(newQty);
+  reasonCtx=null;
+  document.getElementById('backdrop').classList.remove('open');
+  render();
+}
+
+// ── 저장 / 취소 ───────────────────────────────────────────────────────────
+function saveAll(){
+  let count=0;
+  DRAFTS.forEach(d=>d.rfqs.forEach(r=>r.items.filter(i=>i.isMulDae).forEach(it=>{
+    const v=INPUTS[it.id];
+    if(v && v!==''){
+      const prev=SAVED[it.id];
+      if(!prev || String(prev.qty)!==v){
+        SAVED[it.id]={qty:+v, savedAt:new Date().toISOString().slice(0,10)};
+        count++;
+      }
+    }
+  })));
+  if(count) alert(`${count}건 저장 완료되었습니다.`);
+  render();
+}
+function cancelAll(){
+  DRAFTS.forEach(d=>d.rfqs.forEach(r=>r.items.filter(i=>i.isMulDae).forEach(it=>{
+    INPUTS[it.id]=SAVED[it.id]?String(SAVED[it.id].qty):(it.isMpw?'':String(it.rfqQty??''));
+  })));
+  render();
+}
+
+// ── 토글 ──────────────────────────────────────────────────────────────────
+function toggleDetail(rfqId){
+  OPEN_DETAILS.has(rfqId)?OPEN_DETAILS.delete(rfqId):OPEN_DETAILS.add(rfqId);
+  render();
+}
+function toggleCol(col){
+  SHOW_COLS[col]=!SHOW_COLS[col];
+  document.getElementById(`tog-${col}`).className='col-toggle'+(SHOW_COLS[col]?' on':'');
+  render();
+}
+function resetSearch(){
+  ['f-cust','f-proj','f-draft','f-pm'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('f-am').value='';
+  render();
+}
+
+document.getElementById('backdrop').addEventListener('click',e=>{
+  if(e.target===document.getElementById('backdrop')) cancelReason();
+});
+
+render();
+</script>
+</body>
+</html>
