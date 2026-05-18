@@ -965,12 +965,14 @@ function openLot(pid, step, editId) {
   var netDie = p.netDie || 0;
   ctx = {type:'lot', pid:pid, step:step, netDie:netDie, waferOuts:[]};
   var r = editId ? RECORDS.filter(function(x){return x.id===editId;})[0] : {};
-  var existQty = r.qty || (r.waferNos && r.waferNos.length) || 0;
+  var existWnos = (r.waferNos && r.waferNos.length) ? r.waferNos : [];
+  var existQty = existWnos.length || r.qty || 0;
+  /* waferNos를 사람이 읽기 좋은 "1-3,5-6" 형태로 변환 */
+  var existWnosStr = existWnos.length ? w2s(existWnos).replace(/#/g,'').replace(/,\s*/g,',') : '';
   if (editId && r.waferOuts && r.waferOuts.length) {
     ctx.waferOuts = r.waferOuts.map(function(w){return {waferNo:w.waferNo,outQtyEa:w.outQtyEa,isScrap:w.isScrap,remark:w.remark};});
-  } else if (existQty > 0) {
-    ctx.waferOuts = [];
-    for (var i = 1; i <= existQty; i++) ctx.waferOuts.push({waferNo:i, outQtyEa:'', isScrap:false, remark:''});
+  } else if (existWnos.length) {
+    ctx.waferOuts = existWnos.map(function(n){return {waferNo:n, outQtyEa:'', isScrap:false, remark:''};});
   }
   var prevIds = prevStepLotIds(pid, step);
   var guideHtml = prevIds.length
@@ -983,7 +985,9 @@ function openLot(pid, step, editId) {
     '<div class="msec">IN 정보</div>'
     +'<div class="fg">'
     +'<div class="fld"><label>Lot ID</label><input id="l-lid" class="mono" value="'+(r.lotId||'')+'" placeholder="ABC123.01"><span class="fn">영숫자 6자리 · "." · 2자리</span>'+guideHtml+'</div>'
-    +'<div class="fld"><label>Wafer 수량 (최대 25)</label><input id="l-qty" type="number" min="1" max="25" value="'+(existQty||'')+'" placeholder="예: 5" oninput="lotQtyChange(this.value)"><span class="fn" id="l-qpv">'+(existQty?'→ #1-'+existQty+' 자동 할당':'입력하면 #1-N 자동 할당')+'</span></div>'
+    +'<div class="fld"><label>Wafer No. <span class="fn">예: 1-3,5-6 (FAB 출하 후 잔여 번호 입력)</span></label>'
+    +'<input id="l-wnos" class="mono" value="'+existWnosStr+'" placeholder="예: 1-3,5-6" oninput="lotWnosChange(this.value)">'
+    +'<span class="fn" id="l-wcnt">'+(existQty?'총 '+existQty+'장 입력됨':'Wafer 번호를 입력하면 아래 OUT 그리드가 생성됩니다')+'</span></div>'
     +'</div>'
     +'<div class="fg c3">'
     +'<div class="fld"><label>입고일</label><input id="l-rd" type="date" value="'+(r.receiveDate||'')+'"></div>'
@@ -991,11 +995,11 @@ function openLot(pid, step, editId) {
     +'<div class="fld"><label>종료일</label><input id="l-ed" type="date" value="'+(r.endDate||'')+'"></div>'
     +'</div>'
     +'<div class="fg">'
-    +'<div class="fld"><label>In Qty (PCS)</label><input id="l-ip" type="number" min="0" value="'+(r.inQtyPcs!=null?r.inQtyPcs:(existQty||''))+'"></div>'
+    +'<div class="fld"><label>In Qty (PCS) <span class="fn">자동계산</span></label><input id="l-ip" type="number" min="0" value="'+(r.inQtyPcs!=null?r.inQtyPcs:(existQty||''))+'" class="fpre" readonly></div>'
     +'<div class="fld"><label>In Qty (EA)'+(netDie?' <span class="fn" style="color:var(--pri)">Net Die: '+netDie+'</span>':'')+'</label><input id="l-ie" type="number" min="0" value="'+inEaVal+'" placeholder="'+(netDie?'Qty × '+netDie+' 자동계산':'직접 입력')+'"><span class="fn" id="l-ie-note" style="color:var(--pri)">'+(netDie&&existQty?'자동계산: '+existQty+'장 × '+netDie+' = '+(existQty*netDie).toLocaleString()+' EA':'')+'</span></div>'
     +'</div>'
     +'<div class="msec">OUT 입력 — Wafer별 <span style="font-size:10px;font-weight:400">(Good Die 수량은 Wafer마다 다를 수 있음)</span></div>'
-    +'<div id="lot-wo">'+(ctx.waferOuts.length?'':'<div style="color:var(--tx2);padding:6px 0;font-size:11px">Wafer 수량을 먼저 입력해주세요</div>')+'</div>'
+    +'<div id="lot-wo">'+(ctx.waferOuts.length?'':'<div style="color:var(--tx2);padding:6px 0;font-size:11px">위에서 Wafer No.를 입력하면 그리드가 생성됩니다</div>')+'</div>'
     +'<div class="wo-sum" id="lot-sum" style="'+(ctx.waferOuts.length?'':'display:none')+'"></div>'
     +'<div class="msec">처리 정보</div>'
     +'<div class="fg">'
@@ -1009,31 +1013,33 @@ function openLot(pid, step, editId) {
 
 function fillLid(id) { var el=document.getElementById('l-lid'); if(el) el.value=id; }
 
-function lotQtyChange(val) {
-  var n = parseInt(val)||0;
-  var el = document.getElementById('l-qpv');
-  if (el) {
-    if (!n||n<1){el.textContent='입력하면 #1-N 자동 할당';el.style.color='';}
-    else if(n>25){el.textContent='⚠ 최대 25장';el.style.color='var(--red)';}
-    else{el.textContent='→ #1-'+n+' 자동 할당 (총 '+n+'장)';el.style.color='var(--pri)';}
+function lotWnosChange(val) {
+  var nums = s2w(val);
+  var n = nums.length;
+  var cntEl = document.getElementById('l-wcnt');
+  if (cntEl) {
+    if (!n) { cntEl.textContent='Wafer 번호를 입력하면 아래 OUT 그리드가 생성됩니다'; cntEl.style.color=''; }
+    else if (n > 25) { cntEl.textContent='⚠ 최대 25장까지 가능합니다'; cntEl.style.color='var(--red)'; }
+    else { cntEl.textContent='총 '+n+'장 입력됨 ('+w2s(nums)+')'; cntEl.style.color='var(--pri)'; }
   }
-  var ipEl = document.getElementById('l-ip'); if (ipEl && n > 0) ipEl.value = n;
+  if (n < 1 || n > 25) return;
+  /* In Qty PCS 자동 */
+  var ipEl = document.getElementById('l-ip'); if (ipEl) ipEl.value = n;
+  /* In Qty EA 자동 (netDie) */
   var nd = ctx.netDie || 0;
-  if (nd && n > 0) {
+  if (nd) {
     var ea = n * nd;
     var ieEl = document.getElementById('l-ie'); if (ieEl) ieEl.value = ea;
     var nEl = document.getElementById('l-ie-note'); if (nEl) { nEl.textContent='자동계산: '+n+'장 × '+nd+' = '+ea.toLocaleString()+' EA'; nEl.style.color='var(--pri)'; }
   }
-  if (n >= 1 && n <= 25) {
-    var existing = ctx.waferOuts || [];
-    ctx.waferOuts = [];
-    for (var i = 1; i <= n; i++) {
-      var ex = existing.filter(function(w){return w.waferNo===i;})[0];
-      ctx.waferOuts.push(ex ? {waferNo:ex.waferNo,outQtyEa:ex.outQtyEa,isScrap:ex.isScrap,remark:ex.remark} : {waferNo:i,outQtyEa:'',isScrap:false,remark:''});
-    }
-    renderWoGrid();
-    var sumEl = document.getElementById('lot-sum'); if (sumEl) sumEl.style.display='';
-  }
+  /* waferOuts 재생성 (기존 값 유지) */
+  var existing = ctx.waferOuts || [];
+  ctx.waferOuts = nums.map(function(wn) {
+    var ex = existing.filter(function(w){return w.waferNo===wn;})[0];
+    return ex ? {waferNo:ex.waferNo,outQtyEa:ex.outQtyEa,isScrap:ex.isScrap,remark:ex.remark} : {waferNo:wn,outQtyEa:'',isScrap:false,remark:''};
+  });
+  renderWoGrid();
+  var sumEl = document.getElementById('lot-sum'); if (sumEl) sumEl.style.display='';
 }
 
 function renderWoGrid() {
@@ -1093,9 +1099,10 @@ function updateWoSum() {
 function openLotEdit(id) { var r=RECORDS.filter(function(x){return x.id===id;})[0]; openLot(r.pid,r.step,id); }
 
 function saveLot() {
-  var qty = parseInt(gv('l-qty'))||0;
+  var waferNos = s2w(gv('l-wnos'));
+  var qty = waferNos.length;
   if (!gv('l-lid')) { alert('Lot ID를 입력해주세요.'); return; }
-  if (qty < 1) { alert('Wafer 수량을 입력해주세요.'); return; }
+  if (qty < 1) { alert('Wafer No.를 입력해주세요. (예: 1-3,5-6)'); return; }
   if (qty > 25) { alert('최대 25장까지 가능합니다.'); return; }
   var wo = ctx.waferOuts || [];
   wo.forEach(function(w,i){
@@ -1109,9 +1116,8 @@ function saveLot() {
   var inE = gn('l-ie');
   var rej = (inE != null && outE) ? inE - outE : null;
   var yld = (inE && outE && inE>0) ? (outE/inE*100).toFixed(2) : '';
-  var wns = []; for(var i=1;i<=qty;i++) wns.push(i);
   var rec = {step:ctx.step, dir:'LOT', pid:ctx.pid,
-    lotId:gv('l-lid'), qty:qty, waferNos:wns,
+    lotId:gv('l-lid'), qty:qty, waferNos:waferNos,
     receiveDate:gv('l-rd'), startDate:gv('l-sd'), endDate:gv('l-ed'),
     inQtyPcs:gn('l-ip'), inQtyEa:inE,
     waferOuts:wo.length?wo:undefined,
@@ -1128,9 +1134,9 @@ var TPLS = {
   FAB_IN:{title:'FAB IN 템플릿',cols:['Ver','날짜','Lot ID','Wafer Qty (1-25)','Remark'],
     sample:[['A','2026-04-10','FLC001.01','25',''],['A','2026-04-10','FLC001.02','25',''],['A','2026-04-10','FLC001.03','25',''],['A','2026-04-10','FLC001.04','25','']],
     note:'Lot ID 형식: 영숫자 6자리 + "." + 2자리. Wafer No.는 Qty 기준 자동 할당. 1 Lot 최대 25장.'},
-  FAB_OUT:{title:'FAB OUT 템플릿 (다중분배)',cols:['Ver','날짜','Lot ID','Wafer Nos','처리방향','상태','Remark'],
+  FAB_OUT:{title:'FAB OUT 템플릿 (다중분배)',cols:['Ver','날짜','Lot ID','Wafer No.','처리방향','상태','Remark'],
     sample:[['A','2026-05-20','FLC001.01','1-3','고객출하','완료',''],['A','2026-05-20','FLC001.01','4-6','보관','진행중','Cont Hold'],['A','2026-05-20','FLC001.01','7','scrap','scrap','파손'],['A','2026-05-20','FLC001.01','8-25','다음step','진행중','']],
-    note:'같은 Lot ID라도 처리방향이 다르면 행 분리. Wafer Nos: "1-3" 또는 "1,3,5" 형태.'},
+    note:'같은 Lot ID라도 처리방향이 다르면 행 분리. Wafer No.: "1-3" 또는 "1,3,5" 형태.'},
   LOT_IN:{title:'OSAT Lot IN 템플릿',cols:['Lot ID','Wafer Qty','입고일','시작일','종료일','In(PCS)','In(EA)','상태','처리방향','Remark'],
     sample:[['ANA384.01','5','2026-05-01','2026-05-03','2026-05-20','5','4250','완료','고객출하',''],['ANA384.02','5','2026-05-01','2026-05-03','','5','4250','진행중','다음step','']],
     note:'Lot ID 형식: 영숫자 6자리 + "." + 2자리. In(EA)는 Qty × Net Die 자동계산 가능.'},
@@ -1219,7 +1225,7 @@ function saveExcel(){
       var lid=r['Lot ID'];
       var pIn=RECORDS.filter(function(x){return x.pid===ctx.pid&&x.step==='FAB'&&x.dir==='IN'&&x.lotId===lid;})[0];
       if(!pIn){return;}
-      var nums=s2w(r['Wafer Nos']||'');
+      var nums=s2w(r['Wafer No.']||'');
       if(!nums.length) return;
       RECORDS.push({id:nid++,pid:ctx.pid,step:'FAB',dir:'OUT',parentId:pIn.id,ver:r['Ver']||'A',date:r['날짜'],lotId:lid,qty:nums.length,waferNos:nums,direction:r['처리방향']||'다음step',status:r['상태']||'완료',reject:null,yld:'',remark:r['Remark']||''});
     });
