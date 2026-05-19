@@ -1131,7 +1131,7 @@ function saveFabOut() {
     if (dists.length > 1) { alert('편집 모드에서는 분배 1개만 가능합니다.'); return; }
     var dd = dists[0];
     Object.assign(RECORDS.filter(function(x){return x.id===editFoId;})[0], {
-      ver:gv('fo-ver')||'A', date:date, lotId:gv('fo-lid'),
+      ver:gv('fo-ver')||'A', date:date, lotId:dd.tmLotId||gv('fo-lid'),
       qty:dd._w.length, waferNos:dd._w, status:dd.st, direction:dd.dr,
       remark:dd.rm,
       invoiceNo:parsedWaferMeta.invoiceNo||'', invoiceDate:parsedWaferMeta.invoiceDate||'', awbNo:parsedWaferMeta.awbNo||'',
@@ -1139,7 +1139,7 @@ function saveFabOut() {
   } else {
     dists.forEach(function(dd) {
       RECORDS.push({id:nid++, pid:ctx.pid, step:'FAB', dir:'OUT', parentId:ctx.parentInId,
-        ver:gv('fo-ver')||'A', date:date, lotId:gv('fo-lid'),
+        ver:gv('fo-ver')||'A', date:date, lotId:dd.tmLotId||gv('fo-lid'),
         qty:dd._w.length, waferNos:dd._w, status:dd.st, direction:dd.dr,
         remark:dd.rm,
         invoiceNo:parsedWaferMeta.invoiceNo||'', invoiceDate:parsedWaferMeta.invoiceDate||'', awbNo:parsedWaferMeta.awbNo||'',
