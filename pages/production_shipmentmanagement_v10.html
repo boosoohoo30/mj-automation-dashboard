@@ -295,6 +295,7 @@ var RECORDS = [
 
   /* FALCON_N1B 잔여 케이스 */
   {id:6, pid:3, step:'FAB', dir:'IN',  ver:'A', date:'2026-04-10', lotId:'FLC001.01', qty:25,
+   lots:[{lotId:'FLC001.01', qty:25, waferNos:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25]}],
    waferNos:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25], remark:'초도 25장'},
   {id:7, pid:3, step:'FAB', dir:'OUT', parentId:6, ver:'A', date:'2026-05-20', lotId:'FLC001.01',
    waferNos:[1,2,3], qty:3, status:'완료', direction:'고객출하', reject:0, yld:'99.20', remark:'우선 출하분'},
@@ -554,18 +555,28 @@ function buildInRow(r, mpw) {
       +'<td>'+acts+'</td>'
       +'</tr>';
   }
-  var outW = getOutWafers(r.id), rem = getRemaining(r.id);
-  var done = rem.length === 0 && outW.length > 0;
+  var totalOut = getOutWafers(r.id).length;
+  var totalQty = r.qty || 0;
+  var remTotal = totalQty - totalOut;
+  var done = remTotal === 0 && totalOut > 0;
   var badge = done ? '<span class="bdg-done">출하</span>'
-    : outW.length === 0 ? '<span class="bdg-wait">미출하</span>'
-    : '<span class="bdg-rem">잔여 '+rem.length+'장</span>';
+    : totalOut === 0 ? '<span class="bdg-wait">미출하</span>'
+    : '<span class="bdg-rem">잔여 '+remTotal+'장</span>';
+  var multiLot = r.lots && r.lots.length > 1;
+  var lotCell = multiLot
+    ? r.lots.map(function(l){return '<span class="mono" style="font-size:10px">'+l.lotId+'</span>';}).join('<br>')
+    : '<span class="mono">'+(r.lotId||'')+'</span>';
+  var waferCell = multiLot
+    ? r.lots.map(function(l){return '<span style="font-size:10px;color:var(--tx2)">'+l.lotId+': #1-'+l.qty+'</span>';}).join('<br>')
+    : '<span class="mono" style="font-size:10px">'+w2s(r.waferNos)+'</span>';
+  var lotLabel = multiLot ? r.lots.length+'개 Lot' : '';
   return '<tr class="in-row'+(done?' done':'')+'">'
     +'<td><span class="tin">IN</span></td>'
     +'<td>'+r.ver+'</td><td>'+r.date+'</td>'
-    +'<td class="mono">'+(r.lotId||'')+'</td>'
-    +'<td>'+(r.qty||'')+'</td>'
-    +'<td class="mono" style="font-size:10px">'+w2s(r.waferNos)+'</td>'
-    +'<td>'+badge+'<div style="font-size:10px;color:var(--tx2);margin-top:1px">'+outW.length+'/'+(r.qty||0)+'장 출하</div></td>'
+    +'<td>'+lotCell+'</td>'
+    +'<td>'+(r.qty||'')+(multiLot?'<div style="font-size:10px;color:var(--tx2)">'+lotLabel+'</div>':'')+'</td>'
+    +'<td>'+waferCell+'</td>'
+    +'<td>'+badge+'<div style="font-size:10px;color:var(--tx2);margin-top:1px">'+totalOut+'/'+totalQty+'장 출하</div></td>'
     +'<td colspan="9">—</td>'
     +'<td>'+(r.remark||'')+'</td><td>'+acts+'</td>'
     +'</tr>';
@@ -749,31 +760,61 @@ function openFi(pid, editId) {
       +'<div class="fg c1"><div class="fld"><label>Remark</label><input id="fi-rm" value="'+(r.remark||'')+'"></div></div>'
       +'<p class="fn" style="margin-top:6px">※ MPW는 IN 수량 = OUT 수량 항상 동일 · 잔여/YLD 개념 없음</p>';
   } else {
+    var existingLots = r.lots || (r.qty ? [{lotId:r.lotId||'', qty:r.qty}] : [{lotId:'', qty:''}]);
+    var lotsHtml = existingLots.map(function(l, idx) { return fiLotRowHtml(l.lotId, l.qty, idx); }).join('');
     document.getElementById('fi-body').innerHTML =
       '<div class="fg">'
       +'<div class="fld"><label>Ver</label><input id="fi-ver" value="'+(r.ver||'')+'" placeholder="A"></div>'
       +'<div class="fld"><label>날짜</label><input id="fi-date" type="date" value="'+(r.date||'')+'"></div>'
       +'</div>'
-      +'<div class="fg">'
-      +'<div class="fld"><label>Lot ID</label><input id="fi-lid" class="mono" value="'+(r.lotId||'')+'" placeholder="ABC123.01"><span class="fn">영숫자 6자리 · "." · 2자리</span></div>'
-      +'<div class="fld"><label>Wafer 수량 (최대 25)</label>'
-      +'<input id="fi-qty" type="number" min="1" max="25" value="'+(r.qty||'')+'" placeholder="예: 25" oninput="fiPreview(this.value)">'
-      +'<span class="fn" id="fi-pv">입력하면 자동으로 #1-N 할당</span></div>'
-      +'</div>'
+      +'<div class="msec" style="margin-top:4px">Lot 목록 <span class="fn">(Lot당 최대 25장 · TSMC 1 Lot = 25장)</span></div>'
+      +'<div id="fi-lots">'+lotsHtml+'</div>'
+      +'<button class="btn ghost sm" onclick="addFiLot()" style="margin-top:4px;margin-bottom:8px">+ Lot 추가</button>'
+      +'<div id="fi-total-pv" class="fn" style="color:var(--pri);margin-bottom:8px"></div>'
       +'<div class="fg c1"><div class="fld"><label>Remark</label><input id="fi-rm" value="'+(r.remark||'')+'"></div></div>'
-      +'<p class="fn" style="margin-top:6px">※ Wafer No.는 수량 기준 자동 할당 · 처리방향·Reject·YLD는 OUT 등록 시 입력</p>';
-    if (r.qty) fiPreview(r.qty);
+      +'<p class="fn" style="margin-top:6px">※ Wafer No.는 Lot별 #1-N 자동 할당 · 처리방향·Reject·YLD는 OUT 등록 시 입력</p>';
+    updateFiTotal();
   }
   openM('ov-fi');
 }
 
-function fiPreview(val) {
-  var el = document.getElementById('fi-pv');
+function fiLotRowHtml(lotId, qty, idx) {
+  return '<div class="fi-lot-row" style="display:flex;gap:8px;align-items:flex-end;margin-bottom:6px">'
+    +'<div class="fld" style="flex:1"><label>Lot ID</label>'
+    +'<input class="mono fi-lid" value="'+(lotId||'')+'" placeholder="ABC123.01" oninput="updateFiTotal()"></div>'
+    +'<div class="fld" style="width:110px"><label>Qty <span class="fn">(≤25)</span></label>'
+    +'<input class="fi-qty" type="number" min="1" max="25" value="'+(qty||'')+'" placeholder="25" oninput="updateFiTotal()"></div>'
+    +'<button class="btn xs danger" onclick="removeFiLot(this)" style="margin-bottom:2px;flex-shrink:0">삭제</button>'
+    +'</div>';
+}
+function addFiLot() {
+  var c = document.getElementById('fi-lots');
+  var d = document.createElement('div');
+  d.innerHTML = fiLotRowHtml('', '', document.querySelectorAll('#fi-lots .fi-lot-row').length);
+  c.appendChild(d.firstChild);
+  updateFiTotal();
+}
+function removeFiLot(btn) {
+  var rows = document.querySelectorAll('#fi-lots .fi-lot-row');
+  if (rows.length <= 1) { alert('최소 1개 Lot이 필요합니다.'); return; }
+  btn.closest('.fi-lot-row').remove();
+  updateFiTotal();
+}
+function updateFiTotal() {
+  var qEls = document.querySelectorAll('#fi-lots .fi-qty');
+  var lEls = document.querySelectorAll('#fi-lots .fi-lid');
+  var el = document.getElementById('fi-total-pv');
   if (!el) return;
-  var n = parseInt(val);
-  if (!n || n < 1) { el.textContent='입력하면 자동으로 #1-N 할당'; el.style.color=''; return; }
-  if (n > 25) { el.textContent='⚠ 최대 25장'; el.style.color='var(--red)'; return; }
-  el.textContent='→ #1-'+n+' 자동 할당 (총 '+n+'장)'; el.style.color='var(--pri)';
+  var total = 0, overLimit = false;
+  for (var i = 0; i < qEls.length; i++) {
+    var v = parseInt(qEls[i].value)||0;
+    if (v > 25) { overLimit = true; break; }
+    total += v;
+  }
+  if (overLimit) { el.textContent = '⚠ Lot당 최대 25장'; el.style.color = 'var(--red)'; return; }
+  var n = qEls.length;
+  el.textContent = n + '개 Lot · 총 ' + total + '장' + (total > 0 ? ' → Lot별 #1-N 자동 할당' : '');
+  el.style.color = total > 0 ? 'var(--pri)' : 'var(--tx2)';
 }
 
 function openFiEdit(id) { var r=RECORDS.filter(function(x){return x.id===id;})[0]; openFi(r.pid,id); }
@@ -786,21 +827,39 @@ function saveFabIn() {
     rec.startQty = Number(gv('fi-sq'))||0;
     if (!rec.startQty) { alert('Start Qty를 입력해주세요.'); return; }
   } else {
-    var qty = parseInt(gv('fi-qty'))||0;
-    if (qty < 1) { alert('수량을 입력해주세요.'); return; }
-    if (qty > 25) { alert('최대 25장까지 가능합니다.'); return; }
-    rec.lotId = gv('fi-lid');
-    if (!rec.lotId) { alert('Lot ID를 입력해주세요.'); return; }
-    rec.qty = qty;
-    rec.waferNos = [];
-    for (var i = 1; i <= qty; i++) rec.waferNos.push(i);
+    var lotRowEls = document.querySelectorAll('#fi-lots .fi-lot-row');
+    var lots = [], totalQty = 0;
+    for (var li = 0; li < lotRowEls.length; li++) {
+      var row = lotRowEls[li];
+      var lid = row.querySelector('.fi-lid').value.trim();
+      var lqty = parseInt(row.querySelector('.fi-qty').value)||0;
+      if (!lid) { alert((li+1)+'번째 Lot ID를 입력해주세요.'); return; }
+      if (lqty < 1) { alert((li+1)+'번째 수량을 입력해주세요.'); return; }
+      if (lqty > 25) { alert((li+1)+'번째 Lot 수량은 최대 25장입니다.'); return; }
+      var wn = []; for (var wi = 1; wi <= lqty; wi++) wn.push(wi);
+      lots.push({lotId:lid, qty:lqty, waferNos:wn});
+      totalQty += lqty;
+    }
+    if (!lots.length) { alert('Lot을 1개 이상 입력해주세요.'); return; }
+    rec.lots = lots;
+    rec.qty = totalQty;
+    rec.lotId = lots[0].lotId;
+    rec.waferNos = lots[0].waferNos;
   }
   if (editFiId) {
     var orig = RECORDS.filter(function(x){return x.id===editFiId;})[0];
     if (!ctx.mpw) {
-      var used = getOutWafers(editFiId);
-      var bad = used.filter(function(n){return rec.waferNos.indexOf(n)===-1;});
-      if (bad.length) { alert('OUT 등록된 Wafer #'+bad.join(',')+'는 제거 불가.'); return; }
+      var usedByLot = {};
+      RECORDS.filter(function(r){return r.parentId===editFiId && r.dir==='OUT';}).forEach(function(r){
+        var k = r.tmLotId||'__default';
+        usedByLot[k] = (usedByLot[k]||0) + (r.waferNos||[]).length;
+      });
+      var newLotMap = {};
+      (rec.lots||[]).forEach(function(l){ newLotMap[l.lotId] = l.qty; });
+      for (var k in usedByLot) {
+        var cap = newLotMap[k] || (k==='__default' ? rec.qty : 0);
+        if (usedByLot[k] > cap) { alert('이미 OUT 등록된 수량('+usedByLot[k]+'장)이 변경 후 Lot 수량보다 많습니다.'); return; }
+      }
     }
     Object.assign(orig, rec);
   } else {
@@ -846,15 +905,18 @@ function openFo(parentInId, editOutId) {
     openM('ov-fo'); return;
   }
   /* Wafer multi-dist */
+  var multiLot = parentIn.lots && parentIn.lots.length > 1;
   var inW = parentIn.waferNos || [];
-  var remaining;
-  if (editOutId) {
-    var others = RECORDS.filter(function(r){return r.parentId===parentInId && r.dir==='OUT' && r.id!==editOutId;}).reduce(function(a,r){return a.concat(r.waferNos||[]);}, []);
-    remaining = inW.filter(function(n){return others.indexOf(n)===-1;});
-  } else {
-    remaining = getRemaining(parentInId);
-  }
-  if (!remaining.length && !editOutId) { alert('모든 Wafer가 이미 출하 완료되었습니다.'); return; }
+  /* 잔여 계산: 다중Lot이면 총 qty - 등록된 OUT qty, 단일이면 기존 방식 */
+  var totalOutQty = RECORDS.filter(function(r){return r.parentId===parentInId && r.dir==='OUT' && (!editOutId || r.id!==editOutId);}).reduce(function(a,r){return a+(r.waferNos||[]).length;},0);
+  var totalRemQty = (parentIn.qty||0) - totalOutQty;
+  if (totalRemQty <= 0 && !editOutId) { alert('모든 Wafer가 이미 출하 완료되었습니다.'); return; }
+  var remaining = multiLot ? [] : (function(){
+    var others = editOutId
+      ? RECORDS.filter(function(r){return r.parentId===parentInId && r.dir==='OUT' && r.id!==editOutId;}).reduce(function(a,r){return a.concat(r.waferNos||[]);}, [])
+      : getOutWafers(parentInId);
+    return inW.filter(function(n){return others.indexOf(n)===-1;});
+  })();
   if (editOutId) {
     var re = RECORDS.filter(function(x){return x.id===editOutId;})[0];
     dists = [{ws:w2s(re.waferNos).replace(/#/g,''), st:re.status||'진행중', dr:re.direction||'다음step', rej:re.reject!=null?re.reject:'', yld:re.yld||'', rm:re.remark||''}];
@@ -876,7 +938,7 @@ function openFo(parentInId, editOutId) {
     +'<div class="fld" style="margin-bottom:8px"><textarea class="pa" id="fo-wtxt" placeholder="Wafer Invoice 내용 붙여넣기..."></textarea></div>'
     +'<button class="btn ghost sm" onclick="runWaferParse()" style="margin-bottom:10px">▶ 파싱 실행</button>'
     +'<div id="fo-wpr"></div>'
-    +'<div class="msec"><span>잔여 Wafer Pool — '+remaining.length+'장 ('+w2s(remaining)+')</span></div>'
+    +'<div class="msec"><span>잔여 Wafer Pool — '+(multiLot ? totalRemQty+'장 ('+parentIn.lots.length+'개 Lot, Lot별 #1-N)' : remaining.length+'장 ('+w2s(remaining)+')')+'</span></div>'
     +'<div class="wp"><div class="wp-hd"><span>Wafer 상태</span><span id="fo-ps" style="margin-left:auto;font-size:10px"></span></div><div class="wp-chips" id="fo-pool"></div></div>'
     +'<div class="msec"><span>분배 내역</span>'+(editOutId?'':'<button class="btn ghost xs" onclick="addDist()">+ 분배 추가</button>')+'</div>'
     +'<div id="fo-dists"></div>'
@@ -917,6 +979,36 @@ function renderDists(parentIn) {
 }
 
 function renderPool(parentIn, outedOthers) {
+  var multiLot = parentIn.lots && parentIn.lots.length > 1;
+  if (multiLot) {
+    /* 다중 Lot: Lot별 섹션으로 표시 */
+    var html = '';
+    parentIn.lots.forEach(function(lot, lotIdx) {
+      var outRecs = RECORDS.filter(function(r){return r.parentId===parentIn.id && r.dir==='OUT' && r.tmLotId===lot.lotId && (!editFoId || r.id!==editFoId);});
+      var usedQty = outRecs.reduce(function(a,r){return a+(r.waferNos||[]).length;}, 0);
+      var distQty = dists.filter(function(d){return d.tmLotId===lot.lotId;}).reduce(function(a,d){return a+s2w(d.ws).length;}, 0);
+      var remQty = lot.qty - usedQty - distQty;
+      html += '<div style="margin-bottom:6px">'
+        +'<span style="font-size:10px;font-weight:600;color:var(--tx2)">Lot '+lot.lotId+' ('+lot.qty+'장)</span> '
+        +'<span style="font-size:10px;color:var(--tx2)">다른OUT '+usedQty+'장 · 본분배 '+distQty+'장 · 잔여 <strong>'+remQty+'</strong>장</span><br>';
+      for (var n = 1; n <= lot.qty; n++) {
+        var usedByOther = outRecs.some(function(r){return (r.waferNos||[]).indexOf(n)>-1;});
+        var distIdx = -1;
+        dists.forEach(function(d,di){if(d.tmLotId===lot.lotId && s2w(d.ws).indexOf(n)>-1) distIdx=di;});
+        if (usedByOther) html += '<span class="wc used" title="다른 OUT 처리됨">#'+String(n).padStart(2,'0')+'</span>';
+        else if (distIdx>=0) html += '<span class="wc d'+distIdx%5+'">#'+String(n).padStart(2,'0')+'</span>';
+        else html += '<span class="wc">#'+String(n).padStart(2,'0')+'</span>';
+      }
+      html += '</div>';
+    });
+    document.getElementById('fo-pool').innerHTML = html;
+    var totalQty = parentIn.qty||0;
+    var totalOtherOut = RECORDS.filter(function(r){return r.parentId===parentIn.id && r.dir==='OUT' && (!editFoId||r.id!==editFoId);}).reduce(function(a,r){return a+(r.waferNos||[]).length;},0);
+    var totalDist = dists.reduce(function(a,d){return a+s2w(d.ws).length;},0);
+    document.getElementById('fo-ps').innerHTML = '전체 '+totalQty+'장 · 다른OUT '+totalOtherOut+'장 · 본분배 '+totalDist+'장 · 미할당 <strong>'+(totalQty-totalOtherOut-totalDist)+'</strong>장';
+    return;
+  }
+  /* 단일 Lot: 기존 chip 방식 */
   var inW = parentIn.waferNos || [];
   var assigned = {};
   dists.forEach(function(d,i){ s2w(d.ws).forEach(function(n){if(assigned[n]===undefined)assigned[n]=i;}); });
@@ -1013,11 +1105,27 @@ function saveFabOut() {
     }
     d._w = nums;
   }
-  var totalDistQty = dists.reduce(function(a, d) { return a + d._w.length; }, 0);
-  if (totalDistQty > parentIn.qty) {
-    alert('분배 합계(' + totalDistQty + '장)가 FAB IN 수량(' + parentIn.qty + '장)을 초과합니다.\n'
-      + '75장 Invoice 등 다수 Lot이라면 FAB IN을 Lot별로 각각 등록한 뒤 OUT을 따로 진행해주세요.');
-    return;
+  /* Lot별 수량 초과 체크 */
+  var multiLotIn = parentIn.lots && parentIn.lots.length > 1;
+  if (multiLotIn) {
+    var lotCapMap = {};
+    parentIn.lots.forEach(function(l){ lotCapMap[l.lotId] = l.qty; });
+    for (var lotKey in seenByLot) {
+      if (!lotKey) continue;
+      var cap = lotCapMap[lotKey];
+      if (cap === undefined) { alert('TSMC Lot "'+lotKey+'"는 이 FAB IN에 등록되지 않은 Lot입니다.'); return; }
+      var alreadyOut = RECORDS.filter(function(r){return r.parentId===parentIn.id && r.dir==='OUT' && r.tmLotId===lotKey && (!editFoId||r.id!==editFoId);}).reduce(function(a,r){return a+(r.waferNos||[]).length;},0);
+      if (alreadyOut + seenByLot[lotKey].length > cap) {
+        alert('TSMC Lot '+lotKey+'의 OUT 합계('+(alreadyOut+seenByLot[lotKey].length)+'장)가 FAB IN 수량('+cap+'장)을 초과합니다.');
+        return;
+      }
+    }
+  } else {
+    var totalDistQty = dists.reduce(function(a, d) { return a + d._w.length; }, 0);
+    if (totalDistQty > parentIn.qty) {
+      alert('분배 합계(' + totalDistQty + '장)가 FAB IN 수량(' + parentIn.qty + '장)을 초과합니다.');
+      return;
+    }
   }
   if (editFoId) {
     if (dists.length > 1) { alert('편집 모드에서는 분배 1개만 가능합니다.'); return; }
@@ -1599,7 +1707,8 @@ function saveExcel(){
       var qty=parseInt(r['Wafer Qty (1-25)'])||0;
       if(qty<1||qty>25) return;
       var wns=[]; for(var i=1;i<=qty;i++) wns.push(i);
-      RECORDS.push({id:nid++,pid:ctx.pid,step:'FAB',dir:'IN',ver:r['Ver']||'A',date:r['날짜'],lotId:r['Lot ID'],qty:qty,waferNos:wns,remark:r['Remark']||''});
+      var lotId=r['Lot ID']||'';
+      RECORDS.push({id:nid++,pid:ctx.pid,step:'FAB',dir:'IN',ver:r['Ver']||'A',date:r['날짜'],lotId:lotId,qty:qty,waferNos:wns,lots:[{lotId:lotId,qty:qty,waferNos:wns}],remark:r['Remark']||''});
     });
   } else if(mode==='FAB_OUT'){
     excelRows.forEach(function(r){
