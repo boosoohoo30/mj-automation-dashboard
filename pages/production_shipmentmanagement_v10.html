@@ -552,7 +552,7 @@ function buildInRow(r, mpw) {
   }
   var outW = getOutWafers(r.id), rem = getRemaining(r.id);
   var done = rem.length === 0 && outW.length > 0;
-  var badge = done ? '<span class="bdg-done">완출하</span>'
+  var badge = done ? '<span class="bdg-done">출하</span>'
     : outW.length === 0 ? '<span class="bdg-wait">미출하</span>'
     : '<span class="bdg-rem">잔여 '+rem.length+'장</span>';
   return '<tr class="in-row'+(done?' done':'')+'">'
