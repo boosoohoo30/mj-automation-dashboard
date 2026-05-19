@@ -934,7 +934,7 @@ function updateDistInfo(parentIn, outedOthers) {
     var nums = s2w(d.ws);
     var el = document.getElementById('di'+i);
     if (!el) return;
-    var bad = nums.filter(function(n){return (parentIn.waferNos||[]).indexOf(n)===-1 || outedOthers.indexOf(n)>-1;});
+    var bad = d.tmLotId ? [] : nums.filter(function(n){return (parentIn.waferNos||[]).indexOf(n)===-1 || outedOthers.indexOf(n)>-1;});
     if (bad.length) el.innerHTML='<span style="color:var(--red)">⚠ Wafer #'+bad.join(',')+'는 사용 불가</span>';
     else if (!nums.length) el.textContent='Wafer를 입력해주세요';
     else el.innerHTML='<span style="color:var(--grn)">✓ '+nums.length+'장 선택 ('+w2s(nums)+')</span>';
@@ -995,17 +995,21 @@ function saveFabOut() {
   var outedOthers = editFoId
     ? RECORDS.filter(function(r){return r.parentId===parentIn.id && r.dir==='OUT' && r.id!==editFoId;}).reduce(function(a,r){return a.concat(r.waferNos||[]);}, [])
     : getOutWafers(parentIn.id);
-  var seen = [];
+  var seenByLot = {};
   for (var i = 0; i < dists.length; i++) {
     var d = dists[i];
     var nums = s2w(d.ws);
     if (!nums.length) { alert('분배 '+(i+1)+': Wafer를 입력해주세요.'); return; }
+    var lotKey = d.tmLotId || '';
+    if (!seenByLot[lotKey]) seenByLot[lotKey] = [];
     for (var j = 0; j < nums.length; j++) {
       var n = nums[j];
-      if ((parentIn.waferNos||[]).indexOf(n)===-1) { alert('분배 '+(i+1)+': Wafer #'+n+'는 IN에 없습니다.'); return; }
-      if (outedOthers.indexOf(n)>-1) { alert('분배 '+(i+1)+': Wafer #'+n+'는 다른 OUT에서 처리됨.'); return; }
-      if (seen.indexOf(n)>-1) { alert('Wafer #'+n+'가 여러 분배에 중복됨.'); return; }
-      seen.push(n);
+      if (!d.tmLotId) {
+        if ((parentIn.waferNos||[]).indexOf(n)===-1) { alert('분배 '+(i+1)+': Wafer #'+n+'는 IN에 없습니다.'); return; }
+        if (outedOthers.indexOf(n)>-1) { alert('분배 '+(i+1)+': Wafer #'+n+'는 다른 OUT에서 처리됨.'); return; }
+      }
+      if (seenByLot[lotKey].indexOf(n)>-1) { alert('Wafer #'+n+'가 같은 Lot('+lotKey+') 내 여러 분배에 중복됩니다.'); return; }
+      seenByLot[lotKey].push(n);
     }
     d._w = nums;
   }
