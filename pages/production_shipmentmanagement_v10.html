@@ -306,6 +306,7 @@ var RECORDS = [
 var selPid = -1, selStep = '', sbQ = '';
 var ctx = {};
 var parsedItems = [], excelRows = [], parsedMeta = {};
+var parsedWaferRes = null, parsedWaferMeta = {};
 var editFiId = null, editFoId = null, editLotId = null;
 var dists = [];
 
@@ -808,6 +809,7 @@ function openFo(parentInId, editOutId) {
   var mpw = p.cls === 'MPW';
   ctx = {type:'fo', parentInId:parentInId, pid:p.id, mpw:mpw};
   parsedItems = []; parsedMeta = {};
+  parsedWaferRes = null; parsedWaferMeta = {};
   document.getElementById('fo-ttl').textContent = mpw ? 'MPW FAB OUT — TSMC 파싱' : 'FAB OUT '+(editOutId?'편집':'등록')+' — Lot '+(parentIn.lotId||'');
   if (mpw) {
     var r = editOutId ? RECORDS.filter(function(x){return x.id===editOutId;})[0] : {};
@@ -857,6 +859,15 @@ function openFo(parentInId, editOutId) {
     +'<div class="fld"><label>날짜</label><input id="fo-date" type="date" value="'+(editOutId?RECORDS.filter(function(r){return r.id===editOutId;})[0].date:'')+'"></div>'
     +'</div>'
     +'<div class="fg c1"><div class="fld"><label>Lot ID (IN 연동)</label><input id="fo-lid" value="'+(parentIn.lotId||'')+'" class="mono fpre"></div></div>'
+    +'<div class="msec">TSMC Invoice 파싱 <span class="fn">(선택사항 — 파싱 후 분배에 적용)</span></div>'
+    +'<div class="upa" onclick="document.getElementById(\'fo-wfile\').click()">'
+    +'<input type="file" id="fo-wfile" accept=".txt" style="display:none" onchange="loadWaferInvoice(this)">'
+    +'<div class="upa-t">📂 .txt 파일 업로드</div>'
+    +'<div class="upa-s">또는 <a onclick="event.stopPropagation();demoWaferInvoice()">데모 Invoice 로드</a></div>'
+    +'</div>'
+    +'<div class="fld" style="margin-bottom:8px"><textarea class="pa" id="fo-wtxt" placeholder="Wafer Invoice 내용 붙여넣기..."></textarea></div>'
+    +'<button class="btn ghost sm" onclick="runWaferParse()" style="margin-bottom:10px">▶ 파싱 실행</button>'
+    +'<div id="fo-wpr"></div>'
     +'<div class="msec"><span>잔여 Wafer Pool — '+remaining.length+'장 ('+w2s(remaining)+')</span></div>'
     +'<div class="wp"><div class="wp-hd"><span>Wafer 상태</span><span id="fo-ps" style="margin-left:auto;font-size:10px"></span></div><div class="wp-chips" id="fo-pool"></div></div>'
     +'<div class="msec"><span>분배 내역</span>'+(editOutId?'':'<button class="btn ghost xs" onclick="addDist()">+ 분배 추가</button>')+'</div>'
@@ -878,6 +889,7 @@ function renderDists(parentIn) {
       +'<strong style="font-size:12px">분배 '+(i+1)+'</strong>'
       +(dists.length>1?'<button class="btn xs danger" onclick="removeDist('+i+')">✕</button>':'')
       +'</div>'
+      +(d.tmLotId?'<div style="font-size:10px;color:var(--tx2);margin-bottom:4px">TSMC Lot: <span class="mono">'+d.tmLotId+'</span>  PO: <span class="mono">'+(d.poNo||'')+'</span></div>':'')
       +'<div class="fg c1" style="margin-bottom:7px"><div class="fld">'
       +'<label>Wafer 선택 <span class="fn">예: 1~3,5 또는 1-3,5 (범위는 ~ 권장)</span></label>'
       +'<input class="mono" id="dw'+i+'" value="'+(d.ws||'')+'" placeholder="1~3, 5" oninput="onDwChange()">'
@@ -995,13 +1007,17 @@ function saveFabOut() {
     Object.assign(RECORDS.filter(function(x){return x.id===editFoId;})[0], {
       ver:gv('fo-ver')||'A', date:date, lotId:gv('fo-lid'),
       qty:dd._w.length, waferNos:dd._w, status:dd.st, direction:dd.dr,
-      remark:dd.rm});
+      remark:dd.rm,
+      invoiceNo:parsedWaferMeta.invoiceNo||'', invoiceDate:parsedWaferMeta.invoiceDate||'', awbNo:parsedWaferMeta.awbNo||'',
+      tmLotId:dd.tmLotId||'', poNo:dd.poNo||'', tmCode:dd.tmCode||''});
   } else {
     dists.forEach(function(dd) {
       RECORDS.push({id:nid++, pid:ctx.pid, step:'FAB', dir:'OUT', parentId:ctx.parentInId,
         ver:gv('fo-ver')||'A', date:date, lotId:gv('fo-lid'),
         qty:dd._w.length, waferNos:dd._w, status:dd.st, direction:dd.dr,
-        remark:dd.rm});
+        remark:dd.rm,
+        invoiceNo:parsedWaferMeta.invoiceNo||'', invoiceDate:parsedWaferMeta.invoiceDate||'', awbNo:parsedWaferMeta.awbNo||'',
+        tmLotId:dd.tmLotId||'', poNo:dd.poNo||'', tmCode:dd.tmCode||''});
     });
   }
   closeM('ov-fo'); rerender();
