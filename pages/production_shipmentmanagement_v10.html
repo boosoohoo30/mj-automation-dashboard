@@ -1013,6 +1013,12 @@ function saveFabOut() {
     }
     d._w = nums;
   }
+  var totalDistQty = dists.reduce(function(a, d) { return a + d._w.length; }, 0);
+  if (totalDistQty > parentIn.qty) {
+    alert('분배 합계(' + totalDistQty + '장)가 FAB IN 수량(' + parentIn.qty + '장)을 초과합니다.\n'
+      + '75장 Invoice 등 다수 Lot이라면 FAB IN을 Lot별로 각각 등록한 뒤 OUT을 따로 진행해주세요.');
+    return;
+  }
   if (editFoId) {
     if (dists.length > 1) { alert('편집 모드에서는 분배 1개만 가능합니다.'); return; }
     var dd = dists[0];
