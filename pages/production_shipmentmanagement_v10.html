@@ -518,8 +518,8 @@ function buildFab(p) {
   var mpw = p.cls === 'MPW';
   var inRecs = RECORDS.filter(function(r){return r.pid===p.id && r.step==='FAB' && r.dir==='IN';});
   var thMPW = '<th>구분</th><th>Ver</th><th>날짜</th><th>Start Qty</th><th>Out Qty</th><th>과제명</th><th>TM Code</th><th>수량</th><th>단위</th><th>Lot ID</th><th>Wafer No.</th><th>PO No.</th><th>Invoice Date</th><th>Invoice No.</th><th>AWB</th><th>상태</th><th>처리방향</th><th>Remark</th><th></th>';
-  var thW   = '<th>구분</th><th>Ver</th><th>날짜</th><th>Lot ID</th><th>Qty</th><th>Wafer No.</th><th>현황</th><th>상태</th><th>처리방향</th><th>Remark</th><th></th>';
-  var cols = mpw ? 19 : 11;
+  var thW   = '<th>구분</th><th>Ver</th><th>날짜</th><th>Lot ID</th><th>Qty</th><th>Wafer No.</th><th>현황</th><th>과제명</th><th>TM Code</th><th>Lot ID (TSMC)</th><th>PO No.</th><th>Invoice Date</th><th>Invoice No.</th><th>AWB</th><th>상태</th><th>처리방향</th><th>Remark</th><th></th>';
+  var cols = mpw ? 19 : 18;
   var rows = '';
   if (!inRecs.length) {
     rows = '<tr><td colspan="'+cols+'" class="emp">FAB 기록 없음 — IN 추가 버튼으로 시작</td></tr>';
@@ -566,7 +566,8 @@ function buildInRow(r, mpw) {
     +'<td>'+(r.qty||'')+'</td>'
     +'<td class="mono" style="font-size:10px">'+w2s(r.waferNos)+'</td>'
     +'<td>'+badge+'<div style="font-size:10px;color:var(--tx2);margin-top:1px">'+outW.length+'/'+(r.qty||0)+'장 출하</div></td>'
-    +'<td>—</td><td>—</td><td>'+(r.remark||'')+'</td><td>'+acts+'</td>'
+    +'<td colspan="9">—</td>'
+    +'<td>'+(r.remark||'')+'</td><td>'+acts+'</td>'
     +'</tr>';
 }
 
@@ -612,6 +613,13 @@ function buildOutRow(r, mpw) {
     +'<td>'+(r.qty||'')+'</td>'
     +'<td class="mono" style="font-size:10px">'+w2s(r.waferNos)+'</td>'
     +'<td style="color:var(--tx2);font-size:10px">분배 '+(r.qty||0)+'장</td>'
+    +'<td style="font-weight:500">'+(r.name||'—')+'</td>'
+    +'<td class="mono" style="font-size:10px">'+(r.tmCode||'—')+'</td>'
+    +'<td class="mono" style="font-size:10px">'+(r.tmLotId||'—')+'</td>'
+    +'<td class="mono" style="font-size:10px">'+(r.poNo||'—')+'</td>'
+    +'<td style="font-size:10px">'+(r.invoiceDate||'—')+'</td>'
+    +'<td class="mono" style="font-size:10px">'+(r.invoiceNo||'—')+'</td>'
+    +'<td class="mono" style="font-size:10px">'+(r.awbNo||'—')+'</td>'
     +'<td>'+stPill(r.status)+'</td><td>'+drPill(r.direction)+'</td>'
     +'<td>'+(r.remark||'')+'</td><td>'+acts+'</td>'
     +'</tr>';
@@ -1009,7 +1017,7 @@ function saveFabOut() {
       qty:dd._w.length, waferNos:dd._w, status:dd.st, direction:dd.dr,
       remark:dd.rm,
       invoiceNo:parsedWaferMeta.invoiceNo||'', invoiceDate:parsedWaferMeta.invoiceDate||'', awbNo:parsedWaferMeta.awbNo||'',
-      tmLotId:dd.tmLotId||'', poNo:dd.poNo||'', tmCode:dd.tmCode||''});
+      tmLotId:dd.tmLotId||'', poNo:dd.poNo||'', tmCode:dd.tmCode||'', name:dd.name||''});
   } else {
     dists.forEach(function(dd) {
       RECORDS.push({id:nid++, pid:ctx.pid, step:'FAB', dir:'OUT', parentId:ctx.parentInId,
@@ -1017,7 +1025,7 @@ function saveFabOut() {
         qty:dd._w.length, waferNos:dd._w, status:dd.st, direction:dd.dr,
         remark:dd.rm,
         invoiceNo:parsedWaferMeta.invoiceNo||'', invoiceDate:parsedWaferMeta.invoiceDate||'', awbNo:parsedWaferMeta.awbNo||'',
-        tmLotId:dd.tmLotId||'', poNo:dd.poNo||'', tmCode:dd.tmCode||''});
+        tmLotId:dd.tmLotId||'', poNo:dd.poNo||'', tmCode:dd.tmCode||'', name:dd.name||''});
     });
   }
   closeM('ov-fo'); rerender();
@@ -1204,7 +1212,7 @@ function applyWaferParse() {
   parsedWaferMeta = {invoiceNo:parsedWaferRes.invoiceNo, invoiceDate:parsedWaferRes.invoiceDate, awbNo:parsedWaferRes.awbNo};
   dists = parsedWaferRes.items.map(function(it) {
     return {ws:it.waferNos.length?it.waferNos.join(','):'', st:'완료', dr:'다음step', rm:'',
-            tmLotId:it.lotId||'', poNo:it.poNo||'', tmCode:it.tmCode||''};
+            tmLotId:it.lotId||'', poNo:it.poNo||'', tmCode:it.tmCode||'', name:it.name||''};
   });
   if (!dists.length) dists = [{ws:'', st:'완료', dr:'다음step', rm:'', tmLotId:'', poNo:'', tmCode:''}];
   var parentIn = RECORDS.filter(function(r){return r.id===ctx.parentInId;})[0];
