@@ -1094,6 +1094,123 @@ function renderParsedTbl(res) {
     +'</tfoot></table>';
 }
 
+/* ── WAFER INVOICE PARSE ── */
+function parseWaferRange(str) {
+  var nums = [];
+  str.split(',').forEach(function(part) {
+    var p = part.trim(), dash = p.indexOf('-');
+    if (dash > 0) { for (var k=parseInt(p.substring(0,dash)); k<=parseInt(p.substring(dash+1)); k++) nums.push(k); }
+    else if (p) nums.push(parseInt(p));
+  });
+  return nums;
+}
+
+function parseWaferInvoice(text) {
+  var lines = text.split('\n'), items = [];
+  var invoiceNo='', invoiceDate='', awbNo='', m;
+  m = text.match(/INVOICE NO\.\:\s*(\S+)/);   if(m) invoiceNo   = m[1];
+  m = text.match(/INVOICE DATE:\s*(\S+)/);     if(m) invoiceDate = m[1];
+  m = text.match(/HAWB NO\.\s*:?\s*(\S+)/);   if(m) awbNo       = m[1];
+  for (var i = 0; i < lines.length; i++) {
+    var itemM = lines[i].match(/^\s{2,5}(\d+)\s{1,4}(AL-\S+)\s/);
+    if (!itemM) continue;
+    var itemNo = parseInt(itemM[1]), poNo = itemM[2], name = '', tmCode = '';
+    for (var j = i+1; j < Math.min(i+5, lines.length); j++) {
+      var raw = lines[j], pm = raw.match(/^\s{5,}(\S+)\s{3,}(\w[\w_]+)\s*$/);
+      if (pm && !name) { name=pm[1]; tmCode=pm[2]; break; }
+    }
+    for (var j = i+1; j < Math.min(i+25, lines.length); j++) {
+      var raw = lines[j], l = raw.trim();
+      if (!l) continue;
+      if (/^\s{2,5}\d+\s{1,4}AL-/.test(raw)) break;
+      if (l.startsWith('---') || l.startsWith('GRAND') || l.startsWith('TOTAL')) break;
+      var lm = l.match(/^(\S+)\s+\*\s+(\d+)\s+PCS/);
+      if (lm) {
+        var wr = l.match(/#([\d,\-]+)\s*$/);
+        items.push({n:itemNo, poNo:poNo, name:name, tmCode:tmCode,
+                    lotId:lm[1], qty:parseInt(lm[2]), unit:'PCS',
+                    waferNos:wr?parseWaferRange(wr[1]):[]});
+      }
+    }
+  }
+  var gt = text.match(/GRAND TOTAL:\s+(\d+)PCS/i);
+  var parsedTotal = items.reduce(function(a,x){return a+x.qty;},0);
+  return {invoiceNo:invoiceNo, invoiceDate:invoiceDate, awbNo:awbNo,
+          items:items, parsedTotal:parsedTotal, cartonTotal:gt?parseInt(gt[1]):0, unit:'PCS'};
+}
+
+function renderParsedWaferTbl(res) {
+  var items = res.items || [];
+  if (!items.length) return '<div style="color:var(--red);font-size:12px;margin-bottom:8px">⚠ 파싱 결과 없음</div>';
+  var inv=res.invoiceNo||'', invDate=res.invoiceDate||'', awb=res.awbNo||'';
+  var parsedTotal=res.parsedTotal||0, cartonTotal=res.cartonTotal||0;
+  return '<div class="parse-ok">✅ '+items.length+'항목 파싱 완료'
+    +' <button class="btn pri xs" onclick="applyWaferParse()" style="margin-left:10px">▶ 분배에 적용</button></div>'
+    +'<div style="font-size:10px;color:var(--tx2);margin-bottom:6px;display:flex;gap:14px;flex-wrap:wrap">'
+    +'<span><strong>Invoice No.</strong> '+inv+'</span>'
+    +(invDate?'<span><strong>Date</strong> '+invDate+'</span>':'')
+    +(awb?'<span><strong>AWB</strong> '+awb+'</span>':'')
+    +'</div>'
+    +'<table class="pt"><thead><tr>'
+    +'<th>#</th><th>과제명</th><th>TM Code</th><th style="text-align:right">수량</th><th>단위</th><th>Lot ID (TSMC)</th><th>Wafer Nos.</th><th>PO No.</th>'
+    +'</tr></thead><tbody>'
+    +items.map(function(i){
+      return '<tr>'
+        +'<td>'+i.n+'</td>'
+        +'<td style="font-weight:500">'+(i.name||'—')+'</td>'
+        +'<td class="mono" style="font-size:10px">'+(i.tmCode||'—')+'</td>'
+        +'<td style="text-align:right">'+i.qty+'</td>'
+        +'<td>'+i.unit+'</td>'
+        +'<td class="mono" style="font-size:10px">'+(i.lotId||'—')+'</td>'
+        +'<td class="mono" style="font-size:10px">'+(i.waferNos&&i.waferNos.length?'#'+i.waferNos.join(' #'):'—')+'</td>'
+        +'<td class="mono" style="font-size:10px">'+(i.poNo||'—')+'</td>'
+        +'</tr>';
+    }).join('')
+    +'</tbody><tfoot><tr>'
+    +'<td colspan="6" style="font-weight:600">파싱 합계</td>'
+    +'<td style="text-align:right;font-weight:700">'+parsedTotal+'</td><td>PCS</td></tr>'
+    +(cartonTotal?'<tr><td colspan="6" style="color:var(--tx2)">GRAND TOTAL</td>'
+    +'<td style="text-align:right;color:var(--tx2)">'+cartonTotal+'</td><td>PCS</td></tr>':'')
+    +'</tfoot></table>';
+}
+
+function loadWaferInvoice(input) {
+  if (!input.files[0]) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var el = document.getElementById('fo-wtxt'); if (el) el.value = e.target.result;
+    runWaferParse();
+  };
+  reader.readAsText(input.files[0]);
+}
+
+function demoWaferInvoice() {
+  var el = document.getElementById('fo-wtxt'); if (!el) return;
+  el.value = ' \n    0K6426040YAM             SHIPPING/PACKING LIST                      PAGE:1 / 1\n\n    INVOICE NO.: 0K6426040YAM     INVOICE DATE: 04/29/2026\n    CUSTOMER ORDER/PROD.  TSMC ORDER/PROD./LOT DATA\n    --------------------------------------------------------------------------------\n                           12" WAFER\n    1  AL-RTO-20240115-02  0K6424010613\n       Ratel_N1C           TMMQ65C\n                             P6BM75.00  *   6 PCS   P6BM75#1-6\n\n    --------------------------------------------------------------------------------\n                          GRAND TOTAL:     6PCS\n\n    TOTAL  CARTON: 1                    FORWARDER: FEDEX\n                                        HAWB NO. : 871241290953\n';
+  runWaferParse();
+}
+
+function runWaferParse() {
+  var txt = document.getElementById('fo-wtxt') ? document.getElementById('fo-wtxt').value : '';
+  var res = parseWaferInvoice(txt);
+  parsedWaferRes = res;
+  var el = document.getElementById('fo-wpr');
+  if (!el) return;
+  el.innerHTML = renderParsedWaferTbl(res);
+}
+
+function applyWaferParse() {
+  if (!parsedWaferRes || !parsedWaferRes.items.length) { alert('파싱 결과가 없습니다. 먼저 파싱을 실행해주세요.'); return; }
+  parsedWaferMeta = {invoiceNo:parsedWaferRes.invoiceNo, invoiceDate:parsedWaferRes.invoiceDate, awbNo:parsedWaferRes.awbNo};
+  dists = parsedWaferRes.items.map(function(it) {
+    return {ws:it.waferNos.length?it.waferNos.join(','):'', st:'완료', dr:'다음step', rm:'',
+            tmLotId:it.lotId||'', poNo:it.poNo||'', tmCode:it.tmCode||''};
+  });
+  if (!dists.length) dists = [{ws:'', st:'완료', dr:'다음step', rm:'', tmLotId:'', poNo:'', tmCode:''}];
+  var parentIn = RECORDS.filter(function(r){return r.id===ctx.parentInId;})[0];
+  renderDists(parentIn);
+}
+
 /* ── LOT MODAL ── */
 function openLot(pid, step, editId) {
   editLotId = editId || null;
