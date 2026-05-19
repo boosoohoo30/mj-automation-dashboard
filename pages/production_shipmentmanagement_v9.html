@@ -1405,7 +1405,6 @@ function saveExcel(){
       var yld=inE>0&&outE>0?(outE/inE*100).toFixed(2):'';
       Object.assign(rec,{waferOuts:wo,outQtyPcs:outP,outQtyEa:outE,reject:rej,yld:yld});
     });
-  }
   } else if (mode==='ASSY_IN') {
     excelRows.forEach(function(r){
       var inEa = Number(r['In(EA)'])||0;
