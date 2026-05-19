@@ -514,8 +514,8 @@ function buildFab(p) {
   var mpw = p.cls === 'MPW';
   var inRecs = RECORDS.filter(function(r){return r.pid===p.id && r.step==='FAB' && r.dir==='IN';});
   var thMPW = '<th>구분</th><th>Ver</th><th>날짜</th><th>Start Qty</th><th>Invoice No.</th><th>품목 내역</th><th>출하 합계</th><th>상태</th><th>처리방향</th><th>Remark</th><th></th>';
-  var thW   = '<th>구분</th><th>Ver</th><th>날짜</th><th>Lot ID</th><th>Qty</th><th>Wafer No.</th><th>현황</th><th>상태</th><th>처리방향</th><th>Reject</th><th>YLD%</th><th>Remark</th><th></th>';
-  var cols = mpw ? 11 : 13;
+  var thW   = '<th>구분</th><th>Ver</th><th>날짜</th><th>Lot ID</th><th>Qty</th><th>Wafer No.</th><th>현황</th><th>상태</th><th>처리방향</th><th>Remark</th><th></th>';
+  var cols = mpw ? 11 : 11;
   var rows = '';
   if (!inRecs.length) {
     rows = '<tr><td colspan="'+cols+'" class="emp">FAB 기록 없음 — IN 추가 버튼으로 시작</td></tr>';
@@ -562,7 +562,7 @@ function buildInRow(r, mpw) {
     +'<td>'+(r.qty||'')+'</td>'
     +'<td class="mono" style="font-size:10px">'+w2s(r.waferNos)+'</td>'
     +'<td>'+badge+'<div style="font-size:10px;color:var(--tx2);margin-top:1px">'+outW.length+'/'+(r.qty||0)+'장 출하</div></td>'
-    +'<td>—</td><td>—</td><td>—</td><td>—</td><td>'+(r.remark||'')+'</td><td>'+acts+'</td>'
+    +'<td>—</td><td>—</td><td>'+(r.remark||'')+'</td><td>'+acts+'</td>'
     +'</tr>';
 }
 
@@ -592,7 +592,6 @@ function buildOutRow(r, mpw) {
     +'<td class="mono" style="font-size:10px">'+w2s(r.waferNos)+'</td>'
     +'<td style="color:var(--tx2);font-size:10px">분배 '+(r.qty||0)+'장</td>'
     +'<td>'+stPill(r.status)+'</td><td>'+drPill(r.direction)+'</td>'
-    +'<td>'+dash(r.reject)+'</td><td>'+(r.yld?r.yld+'%':'—')+'</td>'
     +'<td>'+(r.remark||'')+'</td><td>'+acts+'</td>'
     +'</tr>';
 }
@@ -863,13 +862,11 @@ function renderDists(parentIn) {
       +'<input class="mono" id="dw'+i+'" value="'+(d.ws||'')+'" placeholder="1~3, 5" oninput="onDwChange()">'
       +'<span class="fn" id="di'+i+'"></span>'
       +'</div></div>'
-      +'<div class="fg c3">'
-      +'<div class="fld"><label>처리방향</label><select id="ddr'+i+'" onchange="dists['+i+'].dr=this.value">'+DIRS.map(function(o){return '<option'+(d.dr===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
+      +'<div class="fg c2">'
       +'<div class="fld"><label>상태</label><select id="dst'+i+'" onchange="dists['+i+'].st=this.value">'+STS.map(function(o){return '<option'+(d.st===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
-      +'<div class="fld"><label>Reject</label><input id="drj'+i+'" type="number" min="0" value="'+(d.rej||'')+'" onchange="dists['+i+'].rej=this.value"></div>'
+      +'<div class="fld"><label>처리방향</label><select id="ddr'+i+'" onchange="dists['+i+'].dr=this.value">'+DIRS.map(function(o){return '<option'+(d.dr===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
       +'</div>'
-      +'<div class="fg">'
-      +'<div class="fld"><label>YLD%</label><input id="dyd'+i+'" placeholder="99.5" value="'+(d.yld||'')+'" onchange="dists['+i+'].yld=this.value"></div>'
+      +'<div class="fg c1">'
       +'<div class="fld"><label>Remark</label><input id="drm'+i+'" value="'+(d.rm||'')+'" onchange="dists['+i+'].rm=this.value"></div>'
       +'</div>'
       +'</div>';
@@ -975,13 +972,13 @@ function saveFabOut() {
     Object.assign(RECORDS.filter(function(x){return x.id===editFoId;})[0], {
       ver:gv('fo-ver')||'A', date:date, lotId:gv('fo-lid'),
       qty:dd._w.length, waferNos:dd._w, status:dd.st, direction:dd.dr,
-      reject:dd.rej===''?null:Number(dd.rej), yld:dd.yld, remark:dd.rm});
+      remark:dd.rm});
   } else {
     dists.forEach(function(dd) {
       RECORDS.push({id:nid++, pid:ctx.pid, step:'FAB', dir:'OUT', parentId:ctx.parentInId,
         ver:gv('fo-ver')||'A', date:date, lotId:gv('fo-lid'),
         qty:dd._w.length, waferNos:dd._w, status:dd.st, direction:dd.dr,
-        reject:dd.rej===''?null:Number(dd.rej), yld:dd.yld, remark:dd.rm});
+        remark:dd.rm});
     });
   }
   closeM('ov-fo'); rerender();
