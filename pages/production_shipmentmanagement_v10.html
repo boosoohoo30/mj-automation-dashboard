@@ -257,8 +257,11 @@ var RECORDS = [
   /* MPW SI0136A */
   {id:1,  pid:0, step:'FAB', dir:'IN',  ver:'A', date:'2026-01-25', startQty:40, remark:'초도 투입'},
   {id:2,  pid:0, step:'FAB', dir:'OUT', parentId:1, ver:'A', date:'2026-05-06',
-   invoiceNo:'0K64260506VY',
-   items:[{n:1,name:'SI0136A',chip:'G6X997.1#1',qty:20,unit:'EA'},{n:2,name:'SI0136A',chip:'G6X997.1#2',qty:20,unit:'EA'}],
+   invoiceNo:'0K64260506VY', invoiceDate:'05/06/2026', awbNo:'522962283069',
+   items:[
+     {n:1, poNo:'AL-MPW-20260129-11', name:'SI0136A', tmCode:'TMWC09_C16', lotId:'G6X997.1', waferNo:1, qty:20, unit:'EA'},
+     {n:2, poNo:'AL-MPW-20260129-11', name:'SI0136A', tmCode:'TMWC09_C16', lotId:'G6X997.1', waferNo:2, qty:20, unit:'EA'}
+   ],
    totalQty:40, unit:'EA', status:'완료', direction:'고객출하', remark:''},
 
   /* Pilot ANA38413 */
@@ -302,7 +305,7 @@ var RECORDS = [
 /* ── STATE ── */
 var selPid = -1, selStep = '', sbQ = '';
 var ctx = {};
-var parsedItems = [], excelRows = [];
+var parsedItems = [], excelRows = [], parsedMeta = {};
 var editFiId = null, editFoId = null, editLotId = null;
 var dists = [];
 
@@ -385,7 +388,7 @@ function parseTSMC(text) {
     var itemM = line.match(/^\s{2,5}(\d+)\s{1,4}(AL-\S+)\s/);
     if (!itemM) continue;
     var itemNo = parseInt(itemM[1]);
-    var name='', tmCode='', qty=0, unit='EA', lotId='', waferNo=0;
+    var name='', tmCode='', qty=0, unit='EA', lotId='', waferNo=0, poNo=itemM[2];
     /* BUG2 FIX: i+20 — 페이지 넘김(~10줄 헤더) 대응 */
     for (var j = i+1; j < Math.min(i+20, lines.length); j++) {
       var raw = lines[j], l = raw.trim();
@@ -404,7 +407,7 @@ function parseTSMC(text) {
       var cm = l.match(/^(\S+?)#(\d+)$/);
       if (cm && !lotId) { lotId=cm[1]; waferNo=parseInt(cm[2]); }
     }
-    if (qty > 0) items.push({n:itemNo, name:name, tmCode:tmCode, qty:qty, unit:unit, lotId:lotId, waferNo:waferNo});
+    if (qty > 0) items.push({n:itemNo, poNo:poNo, name:name, tmCode:tmCode, qty:qty, unit:unit, lotId:lotId, waferNo:waferNo});
   }
 
   /* Carton 합계 추출: '  1-   1     1600  EA ...' */
@@ -513,9 +516,9 @@ function renderPanel(p) {
 function buildFab(p) {
   var mpw = p.cls === 'MPW';
   var inRecs = RECORDS.filter(function(r){return r.pid===p.id && r.step==='FAB' && r.dir==='IN';});
-  var thMPW = '<th>구분</th><th>Ver</th><th>날짜</th><th>Start Qty</th><th>Invoice No.</th><th>품목 내역</th><th>출하 합계</th><th>상태</th><th>처리방향</th><th>Remark</th><th></th>';
+  var thMPW = '<th>구분</th><th>Ver</th><th>날짜</th><th>Start Qty</th><th>Out Qty</th><th>과제명</th><th>TM Code</th><th>수량</th><th>단위</th><th>Lot ID</th><th>Wafer No.</th><th>PO No.</th><th>Invoice Date</th><th>Invoice No.</th><th>AWB</th><th>상태</th><th>처리방향</th><th>Remark</th><th></th>';
   var thW   = '<th>구분</th><th>Ver</th><th>날짜</th><th>Lot ID</th><th>Qty</th><th>Wafer No.</th><th>현황</th><th>상태</th><th>처리방향</th><th>Remark</th><th></th>';
-  var cols = mpw ? 11 : 11;
+  var cols = mpw ? 19 : 11;
   var rows = '';
   if (!inRecs.length) {
     rows = '<tr><td colspan="'+cols+'" class="emp">FAB 기록 없음 — IN 추가 버튼으로 시작</td></tr>';
@@ -546,8 +549,8 @@ function buildInRow(r, mpw) {
       +'<td><span class="tin">IN</span></td>'
       +'<td>'+r.ver+'</td><td>'+r.date+'</td>'
       +'<td><strong>'+r.startQty+'</strong> EA</td>'
-      +'<td colspan="3" style="color:var(--tx2);font-size:10px">'+(hasOut?'OUT 등록됨':'— OUT 미등록')+'</td>'
-      +'<td>—</td><td>—</td><td>'+(r.remark||'')+'</td><td>'+acts+'</td>'
+      +'<td colspan="14" style="color:var(--tx2);font-size:10px">'+(hasOut?'OUT 등록됨':'— OUT 미등록')+('  '+(r.remark||''))+'</td>'
+      +'<td>'+acts+'</td>'
       +'</tr>';
   }
   var outW = getOutWafers(r.id), rem = getRemaining(r.id);
@@ -573,16 +576,33 @@ function buildOutRow(r, mpw) {
     +'</div>';
   if (mpw) {
     var items = r.items || [];
-    var detail = items.map(function(i){return '<span class="mono" style="font-size:10px">'+i.chip+' ('+i.qty+i.unit+')</span>';}).join('<br>');
-    var total = r.totalQty ? '<strong>'+r.totalQty+'</strong> '+r.unit : '—';
-    return '<tr class="out-row">'
-      +'<td><span class="tout">OUT</span></td>'
-      +'<td>'+r.ver+'</td><td>'+r.date+'</td><td>—</td>'
-      +'<td class="mono" style="font-size:10px">'+(r.invoiceNo||'')+'</td>'
-      +'<td>'+(detail||'—')+'</td><td>'+total+'</td>'
-      +'<td>'+stPill(r.status)+'</td><td>'+drPill(r.direction)+'</td>'
-      +'<td>'+(r.remark||'')+'</td><td>'+acts+'</td>'
-      +'</tr>';
+    var total = r.totalQty ? '<strong>'+r.totalQty+'</strong> '+(r.unit||'EA') : '—';
+    var rows = '';
+    items.forEach(function(it, idx) {
+      var first = idx === 0;
+      rows += '<tr class="out-row">'
+        +'<td>'+(first?'<span class="tout">OUT</span>':'')+'</td>'
+        +'<td>'+(first?r.ver:'')+'</td>'
+        +'<td style="font-size:11px">'+(first?r.date:'')+'</td>'
+        +'<td>—</td>'
+        +'<td>'+(first?total:'')+'</td>'
+        +'<td style="font-weight:500">'+(it.name||'—')+'</td>'
+        +'<td class="mono" style="font-size:10px">'+(it.tmCode||'—')+'</td>'
+        +'<td style="text-align:right">'+it.qty+'</td>'
+        +'<td>'+(it.unit||'EA')+'</td>'
+        +'<td class="mono" style="font-size:10px">'+(it.lotId||'—')+'</td>'
+        +'<td class="mono">'+(it.waferNo?'#'+it.waferNo:'—')+'</td>'
+        +'<td class="mono" style="font-size:10px">'+(it.poNo||'—')+'</td>'
+        +'<td style="font-size:10px">'+(first?(r.invoiceDate||'—'):'')+'</td>'
+        +'<td class="mono" style="font-size:10px">'+(first?(r.invoiceNo||'—'):'')+'</td>'
+        +'<td class="mono" style="font-size:10px">'+(first?(r.awbNo||'—'):'')+'</td>'
+        +'<td>'+(first?stPill(r.status):'')+'</td>'
+        +'<td>'+(first?drPill(r.direction):'')+'</td>'
+        +'<td>'+(first?(r.remark||''):'')+'</td>'
+        +'<td>'+(first?acts:'')+'</td>'
+        +'</tr>';
+    });
+    return rows || ('<tr class="out-row"><td><span class="tout">OUT</span></td><td colspan="18">—</td></tr>');
   }
   return '<tr class="out-row">'
     +'<td><span class="tout">OUT</span></td>'
@@ -787,11 +807,12 @@ function openFo(parentInId, editOutId) {
   var p = PROJECTS.filter(function(x){return x.id===parentIn.pid;})[0];
   var mpw = p.cls === 'MPW';
   ctx = {type:'fo', parentInId:parentInId, pid:p.id, mpw:mpw};
-  parsedItems = [];
+  parsedItems = []; parsedMeta = {};
   document.getElementById('fo-ttl').textContent = mpw ? 'MPW FAB OUT — TSMC 파싱' : 'FAB OUT '+(editOutId?'편집':'등록')+' — Lot '+(parentIn.lotId||'');
   if (mpw) {
     var r = editOutId ? RECORDS.filter(function(x){return x.id===editOutId;})[0] : {};
     parsedItems = r.items ? r.items.slice() : [];
+    parsedMeta = {invoiceNo:r.invoiceNo||'', invoiceDate:r.invoiceDate||'', awbNo:r.awbNo||''};
     document.getElementById('fo-body').innerHTML =
       '<div class="fg">'
       +'<div class="fld"><label>Ver</label><input id="fo-ver" value="'+(r.ver||parentIn.ver||'A')+'" class="fpre"></div>'
@@ -934,7 +955,9 @@ function saveFabOut() {
     var txt = document.getElementById('fo-txt') ? document.getElementById('fo-txt').value : '';
     var im = txt.match(/INVOICE NO\.\:\s*(\S+)/);
     var rec = {pid:ctx.pid, step:'FAB', dir:'OUT', parentId:ctx.parentInId,
-      ver:gv('fo-ver')||'A', date:date, invoiceNo:im?im[1]:'',
+      ver:gv('fo-ver')||'A', date:date,
+      invoiceNo:parsedMeta.invoiceNo||(im?im[1]:''),
+      invoiceDate:parsedMeta.invoiceDate||'', awbNo:parsedMeta.awbNo||'',
       items:parsedItems.slice(), totalQty:parsedItems.reduce(function(a,i){return a+i.qty;},0),
       unit:(parsedItems[0]&&parsedItems[0].unit)||'EA',
       status:gv('fo-st'), direction:gv('fo-dr'), remark:gv('fo-rm')};
@@ -1009,6 +1032,7 @@ function runParse() {
   var txt = document.getElementById('fo-txt') ? document.getElementById('fo-txt').value : '';
   var res = parseTSMC(txt);
   parsedItems = res.items;
+  parsedMeta = {invoiceNo:res.invoiceNo||'', invoiceDate:res.invoiceDate||'', awbNo:res.awbNo||''};
   var el = document.getElementById('fo-pr');
   if (!el) return;
   if (!parsedItems.length) { el.innerHTML='<div style="color:var(--red);font-size:12px;margin-bottom:8px">⚠ 파싱 결과 없음</div>'; return; }
@@ -1029,26 +1053,26 @@ function renderParsedTbl(res) {
     +(awb?'<span><strong>AWB</strong> '+awb+'</span>':'')
     +'</div>'
     +'<table class="pt"><thead><tr>'
-    +'<th>#</th><th>과제명</th><th>TM Code</th><th>Lot ID</th><th>Wafer No.</th>'
-    +'<th style="text-align:right">수량</th><th>단위</th>'
+    +'<th>#</th><th>과제명</th><th>TM Code</th><th style="text-align:right">수량</th><th>단위</th><th>Lot ID</th><th>Wafer No.</th><th>PO No.</th>'
     +'</tr></thead>'
     +'<tbody>'+items.map(function(i){
       return '<tr>'
         +'<td>'+i.n+'</td>'
         +'<td style="font-weight:500">'+(i.name||'—')+'</td>'
         +'<td class="mono" style="font-size:10px">'+(i.tmCode||'—')+'</td>'
-        +'<td class="mono" style="font-size:10px">'+(i.lotId||'—')+'</td>'
-        +'<td class="mono">'+(i.waferNo?'#'+i.waferNo:'—')+'</td>'
         +'<td style="text-align:right">'+i.qty+'</td>'
         +'<td>'+i.unit+'</td>'
+        +'<td class="mono" style="font-size:10px">'+(i.lotId||'—')+'</td>'
+        +'<td class="mono">'+(i.waferNo?'#'+i.waferNo:'—')+'</td>'
+        +'<td class="mono" style="font-size:10px">'+(i.poNo||'—')+'</td>'
         +'</tr>';
     }).join('')+'</tbody>'
     +'<tfoot><tr>'
-    +'<td colspan="5" style="font-weight:600">파싱 합계</td>'
+    +'<td colspan="6" style="font-weight:600">파싱 합계</td>'
     +'<td style="text-align:right;font-weight:700">'+parsedTotal+'</td><td>'+unit+'</td>'
     +'</tr>'
     +(cartonTotal?'<tr>'
-    +'<td colspan="5" style="color:var(--tx2)">Carton 합계</td>'
+    +'<td colspan="6" style="color:var(--tx2)">Carton 합계</td>'
     +'<td style="text-align:right;color:var(--tx2)">'+cartonTotal+'</td><td>'+unit+'</td>'
     +'</tr>':'')
     +'</tfoot></table>';
