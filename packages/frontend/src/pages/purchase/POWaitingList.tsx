@@ -108,8 +108,8 @@ export default function POWaitingList({ onSave }: Props) {
     );
   }
 
-  // 고정 컬럼 수 계산 (체크박스 + 기본정보5 + 분류3 + 발주상태1 = 10)
-  const fixedCols = 10;
+  // 고정 컬럼 수 계산 (체크박스 + 기본정보5 + 분류5 + 발주상태1 = 12)
+  const fixedCols = 12;
   const expectedCols = showExpected ? 3 : 0;
   const currentCols  = showCurrent  ? 4 : 0;
   const totalCols = fixedCols + expectedCols + currentCols;
@@ -276,7 +276,7 @@ export default function POWaitingList({ onSave }: Props) {
                   />
                 </th>
                 <th colSpan={5} className="th-group">기본정보</th>
-                <th colSpan={3} className="th-group">분류</th>
+                <th colSpan={5} className="th-group">분류</th>
                 {showExpected && (
                   <th colSpan={3} className="th-group" style={{ background: '#fefce8', color: '#854d0e' }}>
                     예정원가
@@ -298,6 +298,8 @@ export default function POWaitingList({ onSave }: Props) {
                 <th>업체명</th>
                 <th>단계</th>
                 <th>분류1</th>
+                <th>분류2</th>
+                <th>분류3</th>
                 {showExpected && (
                   <>
                     <th style={{ background: '#fefce8' }}>Qty</th>
@@ -347,7 +349,7 @@ export default function POWaitingList({ onSave }: Props) {
                       <td style={{ color: '#374151', fontSize: 12 }}>{rep.customer}</td>
                       <td style={{ color: '#374151', fontSize: 12 }}>{rep.project}</td>
                       <td style={{ color: '#6b7280', fontSize: 12 }}>{rep.alCode}</td>
-                      <td colSpan={3} />
+                      <td colSpan={5} />
                       {showExpected && <td colSpan={3} />}
                       {showCurrent  && <td colSpan={4} />}
                       <td>
@@ -407,6 +409,8 @@ export default function POWaitingList({ onSave }: Props) {
                             </span>
                           </td>
                           <td>{item.category1}</td>
+                          <td style={{ color: '#6b7280', fontSize: 11 }}>{item.category2}</td>
+                          <td style={{ color: '#6b7280', fontSize: 11 }}>{item.category3}</td>
                           {/* 예정원가 (토글) */}
                           {showExpected && (
                             <>
