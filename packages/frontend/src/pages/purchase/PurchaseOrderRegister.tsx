@@ -100,6 +100,10 @@ export default function PurchaseOrderRegister({ selectedItems, onCancel, onSave 
   const [quoteNo, setQuoteNo]     = useState('');
   const [poCurrency, setPoCurrency] = useState<'USD' | 'KRW'>('USD');
   const [tmCode, setTmCode]       = useState('');
+  // TSMC 전용
+  const [processName, setProcessName] = useState('');
+  // 비TSMC 전용
+  const [spec, setSpec]           = useState('');
 
   const [lineItems, setLineItems] = useState<POLineItem[]>([]);
   const [isAdminRebate, setIsAdminRebate]     = useState(false);
@@ -190,119 +194,178 @@ export default function PurchaseOrderRegister({ selectedItems, onCancel, onSave 
         </div>
 
         <div style={{ padding: '16px 20px' }}>
-          {/* 기안 참조 정보 (읽기전용) */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px 24px', marginBottom: 16 }}>
-            <div>
-              <label className="form-label">매출기안#</label>
-              <input type="text" className="form-input" value={salesOrderNo} readOnly style={{ background: '#f3f4f6', color: '#6b7280' }} />
+          {/* ── 내부 참조 정보 (읽기전용) ── */}
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', gap: '8px 24px',
+            padding: '10px 14px', background: '#f8f9fb', borderRadius: 6,
+            marginBottom: 16, border: '1px solid #f0f0f0',
+          }}>
+            {[
+              { label: '매출기안#', value: salesOrderNo },
+              { label: 'RFQ#',     value: rfqNo },
+              { label: 'Customer', value: customer },
+              { label: 'AL Code',  value: alCode },
+            ].map(({ label, value }) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                <span style={{ color: '#9ca3af' }}>{label}</span>
+                <span style={{ fontWeight: 600, color: '#374151' }}>{value || '-'}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* ── 외주처 선택 (공통 최상단) ── */}
+          <div style={{ marginBottom: 16 }}>
+            <label className="form-label">외주처 <span style={{ color: '#ef4444' }}>*</span></label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <select className="form-select" style={{ maxWidth: 220 }} value={vendor}
+                onChange={e => setVendor(e.target.value)}>
+                <option value="">선택</option>
+                {VENDOR_LIST.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              {vendor && (
+                <span className={`badge ${isTsmc ? 'badge-blue' : 'badge-orange'}`} style={{ fontSize: 12 }}>
+                  {isTsmc ? 'TSMC 발주 · Rebate Info 등록 가능' : `${vendor} 발주`}
+                </span>
+              )}
             </div>
-            <div>
-              <label className="form-label">RFQ#</label>
-              <input type="text" className="form-input" value={rfqNo} readOnly style={{ background: '#f3f4f6', color: '#6b7280' }} />
-            </div>
-            <div>
-              <label className="form-label">AL Code</label>
-              <input type="text" className="form-input" value={alCode} readOnly style={{ background: '#f3f4f6', color: '#6b7280' }} />
-            </div>
-            <div>
-              <label className="form-label">Customer</label>
-              <input type="text" className="form-input" value={customer} readOnly style={{ background: '#f3f4f6', color: '#6b7280' }} />
-            </div>
-            <div>
-              <label className="form-label">Project</label>
-              <input type="text" className="form-input" value={project} readOnly style={{ background: '#f3f4f6', color: '#6b7280' }} />
-            </div>
+            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>CUST-05 등록 외주처</div>
           </div>
 
           <hr className="divider" style={{ marginBottom: 16 }} />
 
-          {/* PO 작성 정보 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px 24px' }}>
-            {/* 외주처 */}
-            <div>
-              <label className="form-label">외주처 <span style={{ color: '#ef4444' }}>*</span></label>
-              <select className="form-select" value={vendor} onChange={e => setVendor(e.target.value)}>
-                <option value="">선택</option>
-                {VENDOR_LIST.map(v => <option key={v} value={v}>{v}</option>)}
-              </select>
-              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>CUST-05 등록 외주처</div>
-            </div>
-
-            {/* PO Date */}
-            <div>
-              <label className="form-label">PO Date <span style={{ color: '#ef4444' }}>*</span></label>
-              <input type="date" className="form-input" value={poDate} onChange={e => setPoDate(e.target.value)} />
-            </div>
-
-            {/* PO No. — TSMC면 type 선택 + 자동생성 */}
-            <div>
-              <label className="form-label">
-                PO No.
-                {isTsmc && <span style={{ marginLeft: 6, fontSize: 11, color: '#7c3aed', fontWeight: 600 }}>자동 생성</span>}
-              </label>
-              {isTsmc ? (
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  {/* Type 드롭다운 */}
-                  <select
-                    className="form-select"
-                    style={{ width: 90, flexShrink: 0 }}
-                    value={tsmcType}
-                    onChange={e => setTsmcType(e.target.value as TsmcType)}
-                  >
+          {/* ── TSMC 전용 PO 정보 필드 ── */}
+          {isTsmc && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px 24px' }}>
+              {/* 1. PO No. (TSMC 자동생성) */}
+              <div>
+                <label className="form-label">
+                  PO No. <span style={{ marginLeft: 4, fontSize: 11, color: '#7c3aed', fontWeight: 600 }}>자동 생성</span>
+                </label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <select className="form-select" style={{ width: 86, flexShrink: 0 }}
+                    value={tsmcType} onChange={e => setTsmcType(e.target.value as TsmcType)}>
                     {TSMC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
-                  {/* 시퀀스 */}
-                  <input type="number" className="form-input" style={{ width: 56, flexShrink: 0, textAlign: 'center' }}
+                  <input type="number" className="form-input" style={{ width: 52, flexShrink: 0, textAlign: 'center' }}
                     min={1} max={99} value={Number(poSeq)}
                     onChange={e => setPoSeq(String(e.target.value).padStart(2, '0'))} />
-                  {/* 생성된 PO No. 표시 */}
                   <input type="text" className="form-input"
-                    style={{ background: '#f5f3ff', color: '#6d28d9', fontWeight: 600, fontFamily: 'monospace' }}
+                    style={{ background: '#f5f3ff', color: '#6d28d9', fontWeight: 700, fontFamily: 'monospace', fontSize: 12 }}
                     value={poNo} readOnly />
                 </div>
-              ) : (
-                <input type="text" className="form-input"
-                  style={{ fontFamily: 'monospace', color: vendor ? '#1d4ed8' : '#9ca3af', fontWeight: vendor ? 600 : 400 }}
-                  value={poNo} readOnly placeholder="외주처 선택 후 자동 생성" />
-              )}
-              {isTsmc ? (
                 <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 4 }}>
-                  형식: AL-<strong>TYPE</strong>-YYYYMMDD-NN　·　type: MPW · NTO · MP · RTO · IP
+                  AL-<b>TYPE</b>-YYYYMMDD-NN　·　type: MPW · NTO · MP · RTO · IP
                 </div>
-              ) : vendor ? (
+              </div>
+
+              {/* 2. PO Date */}
+              <div>
+                <label className="form-label">PO Date <span style={{ color: '#ef4444' }}>*</span></label>
+                <input type="date" className="form-input" value={poDate} onChange={e => setPoDate(e.target.value)} />
+              </div>
+
+              {/* 3. 견적서 No. */}
+              <div>
+                <label className="form-label">견적서 No.</label>
+                <input type="text" className="form-input" value={quoteNo} placeholder="견적서 번호 입력"
+                  onChange={e => setQuoteNo(e.target.value)} />
+              </div>
+
+              {/* 4. 공정명 */}
+              <div>
+                <label className="form-label">공정명</label>
+                <input type="text" className="form-input" value={processName}
+                  placeholder="예) 65nm CMOS MSRF GP+ 12inch"
+                  onChange={e => setProcessName(e.target.value)} />
+              </div>
+
+              {/* 5. TM Code */}
+              <div>
+                <label className="form-label">TM Code</label>
+                <input type="text" className="form-input" value={tmCode}
+                  placeholder="TM Code 입력" onChange={e => setTmCode(e.target.value)} />
+              </div>
+
+              {/* 6. 과제명 (Project - 자동 반입) */}
+              <div>
+                <label className="form-label">과제명</label>
+                <input type="text" className="form-input" value={project} readOnly
+                  style={{ background: '#f3f4f6', color: '#6b7280' }} />
+              </div>
+
+              {/* 7. PO 금액 단위 */}
+              <div>
+                <label className="form-label">PO 금액 단위</label>
+                <select className="form-select" value={poCurrency}
+                  onChange={e => setPoCurrency(e.target.value as 'USD' | 'KRW')}>
+                  <option value="USD">달러 (USD $)</option>
+                  <option value="KRW">원화 (KRW ₩)</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* ── 비TSMC PO 정보 필드 ── */}
+          {!isTsmc && vendor && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px 24px' }}>
+              {/* 1. PO No. */}
+              <div>
+                <label className="form-label">PO No.</label>
+                <input type="text" className="form-input"
+                  style={{ fontFamily: 'monospace', color: '#1d4ed8', fontWeight: 600 }}
+                  value={poNo} readOnly />
                 <div style={{ fontSize: 11, color: '#2563eb', marginTop: 4 }}>
-                  형식: AL-<strong>{vendor}</strong>-YYYYMMDD-NN
+                  AL-<b>{vendor}</b>-YYYYMMDD-NN
                 </div>
-              ) : null}
-            </div>
+              </div>
 
-            {/* 견적서 No. */}
-            <div>
-              <label className="form-label">견적서 No.</label>
-              <input type="text" className="form-input" value={quoteNo} placeholder="견적서 번호 입력"
-                onChange={e => setQuoteNo(e.target.value)} />
-            </div>
+              {/* 2. PO Date */}
+              <div>
+                <label className="form-label">PO Date <span style={{ color: '#ef4444' }}>*</span></label>
+                <input type="date" className="form-input" value={poDate} onChange={e => setPoDate(e.target.value)} />
+              </div>
 
-            {/* PO 금액 단위 */}
-            <div>
-              <label className="form-label">PO 금액 단위</label>
-              <select className="form-select" value={poCurrency} onChange={e => setPoCurrency(e.target.value as 'USD' | 'KRW')}>
-                <option value="USD">달러 (USD $)</option>
-                <option value="KRW">원화 (KRW ₩)</option>
-              </select>
-            </div>
+              {/* 3. 견적서 No. */}
+              <div>
+                <label className="form-label">견적서 No.</label>
+                <input type="text" className="form-input" value={quoteNo} placeholder="견적서 번호 입력"
+                  onChange={e => setQuoteNo(e.target.value)} />
+              </div>
 
-            {/* TM Code */}
-            <div>
-              <label className="form-label">
-                TM Code
-                {!isTsmc && <span style={{ marginLeft: 6, color: '#9ca3af', fontWeight: 400 }}>(TSMC 전용)</span>}
-              </label>
-              <input type="text" className="form-input" value={tmCode}
-                placeholder={isTsmc ? 'TM Code 입력' : '-'} disabled={!isTsmc}
-                onChange={e => setTmCode(e.target.value)} />
+              {/* 4. 과제명 */}
+              <div>
+                <label className="form-label">과제명</label>
+                <input type="text" className="form-input" value={project} readOnly
+                  style={{ background: '#f3f4f6', color: '#6b7280' }} />
+              </div>
+
+              {/* 5. SPEC */}
+              <div style={{ gridColumn: 'span 2' }}>
+                <label className="form-label">SPEC</label>
+                <textarea className="form-textarea" rows={2} value={spec}
+                  placeholder="사양, 특이사항, 조건 등 자유롭게 기재"
+                  style={{ resize: 'vertical' }}
+                  onChange={e => setSpec(e.target.value)} />
+              </div>
+
+              {/* 6. PO 금액 단위 */}
+              <div>
+                <label className="form-label">PO 금액 단위</label>
+                <select className="form-select" value={poCurrency}
+                  onChange={e => setPoCurrency(e.target.value as 'USD' | 'KRW')}>
+                  <option value="USD">달러 (USD $)</option>
+                  <option value="KRW">원화 (KRW ₩)</option>
+                </select>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* 외주처 미선택 안내 */}
+          {!vendor && (
+            <div style={{ color: '#9ca3af', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
+              외주처를 선택하면 PO 정보 입력 항목이 표시됩니다.
+            </div>
+          )}
         </div>
       </div>
 
