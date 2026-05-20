@@ -47,6 +47,7 @@ export interface POLineItem {
   poQty: number;
   unitPrice: number;
   amount: number;         // poQty × unitPrice 자동계산
+  remark?: string;
   // Rebate Info (TSMC 전용)
   vcaPrice?: number;
   parPrice?: number;

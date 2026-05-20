@@ -22,6 +22,9 @@ export default function POItemsTable({ items, isTsmc, isAdminRebate, onChange }:
 
   const remove = (id: string) => onChange(items.filter(i => i.id !== id));
 
+  // 총 컬럼 수: 분류4 + 발주품목명1 + 발주원가3 + (Rebate4 if TSMC) + Remark1 + delete1
+  const totalCols = isTsmc ? 14 : 10;
+
   return (
     <div className="tbl-wrap">
       <table className="tbl">
@@ -39,6 +42,9 @@ export default function POItemsTable({ items, isTsmc, isAdminRebate, onChange }:
                 Rebate Info
               </th>
             )}
+            <th rowSpan={2} style={{ background: '#f8f9fb', minWidth: 120, color: '#374151', fontWeight: 600 }}>
+              Remark
+            </th>
             <th rowSpan={2} style={{ background: '#f8f9fb', width: 40 }} />
           </tr>
           <tr>
@@ -66,7 +72,7 @@ export default function POItemsTable({ items, isTsmc, isAdminRebate, onChange }:
         <tbody>
           {items.length === 0 && (
             <tr>
-              <td colSpan={isTsmc ? 13 : 9} style={{ color: '#9ca3af', padding: '24px', textAlign: 'center' }}>
+              <td colSpan={totalCols} style={{ color: '#9ca3af', padding: '24px', textAlign: 'center' }}>
                 선택된 발주 항목이 없습니다.
               </td>
             </tr>
@@ -82,7 +88,7 @@ export default function POItemsTable({ items, isTsmc, isAdminRebate, onChange }:
               <td>{item.category2}</td>
               <td>{item.category3}</td>
 
-              {/* 발주 품목명 - 수정 가능 */}
+              {/* 발주 품목명 */}
               <td className="po-name-cell">
                 <input
                   type="text"
@@ -125,6 +131,18 @@ export default function POItemsTable({ items, isTsmc, isAdminRebate, onChange }:
                 </>
               )}
 
+              {/* Remark */}
+              <td>
+                <input
+                  type="text"
+                  className="cell-input-text"
+                  style={{ background: '#fff', minWidth: 110 }}
+                  value={item.remark ?? ''}
+                  placeholder="비고"
+                  onChange={e => update(item.id, { remark: e.target.value })}
+                />
+              </td>
+
               <td>
                 <button className="btn btn-ghost btn-sm"
                   style={{ color: '#ef4444', border: 'none', padding: '4px 8px' }}
@@ -142,6 +160,7 @@ export default function POItemsTable({ items, isTsmc, isAdminRebate, onChange }:
                 ${items.reduce((s, i) => s + i.amount, 0).toLocaleString()}
               </td>
               {isTsmc && <td colSpan={4} />}
+              <td />{/* Remark */}
               <td />
             </tr>
           </tfoot>
