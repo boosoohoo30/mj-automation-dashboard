@@ -5,7 +5,7 @@ import PurchaseOrderRegister from './PurchaseOrderRegister';
 // ── 샘플 데이터 (SC-FIN-10 엑셀 기준) ───────────────────────────────
 const SAMPLE_ITEMS: POWaitingItem[] = [
   {
-    id: 'w-001', salesOrderNo: 'AS-영업1팀-251014-003', rfqNo: 'Q-260423-001',
+    id: 'w-001', salesOrderNo: 'AS-영업1팀-251014-003', rfqNo: 'RFQ-260423-001',
     am: 'DJ', customer: 'Uniqconn', project: 'UC60Plus_C4', alCode: 'CC65058A',
     pm: 'ES', pmAssigned: true, vendor: 'TSMC', stage: 'FAB',
     category1: 'MPW', category2: 'Cyber shuttle', category3: 'Block portion',
@@ -14,7 +14,7 @@ const SAMPLE_ITEMS: POWaitingItem[] = [
     invoiceTiming: '2606', poStatus: 'pending',
   },
   {
-    id: 'w-002', salesOrderNo: 'AS-영업1팀-251014-003', rfqNo: 'Q-260423-001',
+    id: 'w-002', salesOrderNo: 'AS-영업1팀-251014-003', rfqNo: 'RFQ-260423-001',
     am: 'DJ', customer: 'Uniqconn', project: 'UC60Plus_C4', alCode: 'CC65058A',
     pm: 'ES', pmAssigned: true, vendor: 'TSMC', stage: 'FAB',
     category1: 'MPW', category2: 'Cyber shuttle', category3: 'Extra wafer fee',
@@ -23,7 +23,7 @@ const SAMPLE_ITEMS: POWaitingItem[] = [
     invoiceTiming: '2606', poStatus: 'pending',
   },
   {
-    id: 'w-003', salesOrderNo: 'AS-영업2팀-260101', rfqNo: 'Q-260301-001',
+    id: 'w-003', salesOrderNo: 'AS-영업2팀-260101', rfqNo: 'RFQ-260301-001',
     am: 'SY', customer: 'Fadu', project: 'Albatross_N1B', alCode: 'AA12345B',
     pm: 'KS', pmAssigned: true, vendor: 'TSMC', stage: 'FAB',
     category1: 'Single', category2: 'Wafer Buy', category3: 'Pilot Wafer',
@@ -32,7 +32,7 @@ const SAMPLE_ITEMS: POWaitingItem[] = [
     invoiceTiming: '2701', poStatus: 'pending',
   },
   {
-    id: 'w-004', salesOrderNo: 'AS-영업1팀-260407-003', rfqNo: 'Q-260202-001',
+    id: 'w-004', salesOrderNo: 'AS-영업1팀-260407-003', rfqNo: 'RFQ-260202-001',
     am: 'DJ', customer: 'Uniqconn', project: 'UC60Plus_C4', alCode: 'CC65058A',
     pm: '', pmAssigned: false, vendor: 'ATK4', stage: 'OSAT_PKG',
     category1: 'FcCSP', category2: 'Assembly', category3: 'Assy Price',
@@ -221,84 +221,139 @@ export default function POWaitingList() {
         </div>
       </div>
 
-      {/* ── Section 3: 목록 테이블 ── */}
+      {/* ── Section 3: 목록 테이블 (SC-FIN-10 동일 구조) ── */}
       <div className="card">
         <div className="tbl-wrap">
           <table className="tbl">
             <thead>
+              {/* 그룹 헤더 */}
               <tr>
-                <th style={{ width: 36 }}>
+                <th rowSpan={2} style={{ width: 36 }}>
                   <input
                     type="checkbox"
                     checked={selectedIds.size === filtered.length && filtered.length > 0}
                     onChange={toggleAll}
                   />
                 </th>
-                <th>매출기안# · AM · Customer</th>
+                <th colSpan={5} className="th-group">기본정보</th>
+                <th colSpan={3} className="th-group">분류</th>
+                <th colSpan={3} className="th-group" style={{ background: '#f0fdf4', color: '#166534' }}>예정원가</th>
+                <th rowSpan={2}>Invoice<br/>시점</th>
+                <th rowSpan={2}>발주 상태</th>
+              </tr>
+              <tr>
+                <th>매출기안#</th>
+                <th>AM</th>
+                <th>Customer</th>
+                <th>Project</th>
+                <th>AL Code</th>
                 <th>업체명</th>
                 <th>단계</th>
                 <th>분류1</th>
-                <th>분류2</th>
-                <th>분류3</th>
-                <th>예정 Qty</th>
-                <th>예정 원가($)</th>
-                <th>Invoice 시점</th>
-                <th>PM</th>
-                <th>발주 상태</th>
+                <th style={{ background: '#f0fdf4' }}>Qty</th>
+                <th style={{ background: '#f0fdf4' }}>U/PRC($)</th>
+                <th style={{ background: '#f0fdf4' }}>예정원가($)</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={12} style={{ color: '#9ca3af', padding: '32px', textAlign: 'center' }}>
+                  <td colSpan={15} style={{ color: '#9ca3af', padding: '32px', textAlign: 'center' }}>
                     조회된 항목이 없습니다.
                   </td>
                 </tr>
               )}
-              {filtered.map(item => (
-                <tr key={item.id} style={{ cursor: 'pointer' }} onClick={() => toggleRow(item.id)}>
-                  <td onClick={e => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(item.id)}
-                      onChange={() => toggleRow(item.id)}
-                    />
-                  </td>
-                  <td style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 600, fontSize: 12 }}>
-                      {item.salesOrderNo} · {item.am} · {item.customer}
-                    </div>
-                    <div style={{ color: '#6b7280', fontSize: 11, marginTop: 2 }}>
-                      {item.rfqNo} · {item.project}
-                    </div>
-                  </td>
-                  <td><span className="badge badge-blue">{item.vendor}</span></td>
-                  <td>
-                    <span className={`badge ${item.stage.startsWith('FAB') ? 'badge-blue' : 'badge-orange'}`}>
-                      {item.stage}
-                    </span>
-                  </td>
-                  <td>{item.category1}</td>
-                  <td>{item.category2}</td>
-                  <td>{item.category3}</td>
-                  <td style={{ textAlign: 'right' }}>{item.expectedQty.toLocaleString()}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                    ${item.expectedAmount.toLocaleString()}
-                  </td>
-                  <td>{item.invoiceTiming}</td>
-                  <td>
-                    {item.pmAssigned
-                      ? <span className="badge badge-green">{item.pm}</span>
-                      : <span className="badge badge-red">미지정</span>
-                    }
-                  </td>
-                  <td>
-                    <span className={`badge ${item.poStatus === 'ordered' ? 'badge-green' : 'badge-gray'}`}>
-                      {item.poStatus === 'ordered' ? '발주완료' : '미발주'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {(() => {
+                // 매출기안# 기준 그룹화
+                const salesGroups = new Map<string, POWaitingItem[]>();
+                filtered.forEach(item => {
+                  const g = salesGroups.get(item.salesOrderNo) ?? [];
+                  g.push(item);
+                  salesGroups.set(item.salesOrderNo, g);
+                });
+
+                const rows: React.ReactNode[] = [];
+                salesGroups.forEach((salesItems, salesOrderNo) => {
+                  const rep = salesItems[0];
+
+                  // ── 매출기안# 그룹 행 ──
+                  rows.push(
+                    <tr key={`g-${salesOrderNo}`} style={{ background: '#f5f7ff' }}>
+                      <td />
+                      <td style={{ textAlign: 'left', fontWeight: 700, fontSize: 12, color: '#1e3a8a', paddingLeft: 10 }}>
+                        {salesOrderNo}
+                      </td>
+                      <td style={{ color: '#374151', fontSize: 12 }}>{rep.am}</td>
+                      <td style={{ color: '#374151', fontSize: 12 }}>{rep.customer}</td>
+                      <td style={{ color: '#374151', fontSize: 12 }}>{rep.project}</td>
+                      <td style={{ color: '#6b7280', fontSize: 12 }}>{rep.alCode}</td>
+                      <td colSpan={6} />
+                      <td>
+                        {rep.pmAssigned
+                          ? <span className="badge badge-green">{rep.pm}</span>
+                          : <span className="badge badge-red">PM 미지정</span>}
+                      </td>
+                      <td />
+                    </tr>
+                  );
+
+                  // RFQ# 기준 서브 그룹화
+                  const rfqGroups = new Map<string, POWaitingItem[]>();
+                  salesItems.forEach(item => {
+                    const r = rfqGroups.get(item.rfqNo) ?? [];
+                    r.push(item);
+                    rfqGroups.set(item.rfqNo, r);
+                  });
+
+                  rfqGroups.forEach((rfqItems, rfqNo) => {
+                    // ── RFQ# 서브 헤더 행 ──
+                    rows.push(
+                      <tr key={`rfq-${rfqNo}`} style={{ background: '#fafbff' }}>
+                        <td />
+                        <td colSpan={14} style={{ textAlign: 'left', paddingLeft: 24, color: '#6b7280', fontSize: 11 }}>
+                          <span style={{ fontWeight: 600, color: '#374151' }}>{rfqNo}</span>
+                        </td>
+                      </tr>
+                    );
+
+                    // ── 아이템 행 ──
+                    rfqItems.forEach(item => {
+                      rows.push(
+                        <tr
+                          key={item.id}
+                          style={{ cursor: 'pointer', background: selectedIds.has(item.id) ? '#eff6ff' : undefined }}
+                          onClick={() => toggleRow(item.id)}
+                        >
+                          <td onClick={e => e.stopPropagation()}>
+                            <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleRow(item.id)} />
+                          </td>
+                          {/* 기본정보 열들은 그룹 행에서 표시하므로 빈 셀 */}
+                          <td colSpan={5} />
+                          <td><span className="badge badge-blue">{item.vendor}</span></td>
+                          <td>
+                            <span className={`badge ${item.stage.startsWith('FAB') ? 'badge-blue' : 'badge-orange'}`}>
+                              {item.stage}
+                            </span>
+                          </td>
+                          <td>{item.category1}</td>
+                          <td style={{ textAlign: 'right', background: '#f9fefb' }}>{item.expectedQty.toLocaleString()}</td>
+                          <td style={{ textAlign: 'right', background: '#f9fefb' }}>{item.expectedUnitPrice.toLocaleString()}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600, background: '#f9fefb', color: '#166534' }}>
+                            ${item.expectedAmount.toLocaleString()}
+                          </td>
+                          <td>{item.invoiceTiming}</td>
+                          <td>
+                            <span className={`badge ${item.poStatus === 'ordered' ? 'badge-green' : 'badge-gray'}`}>
+                              {item.poStatus === 'ordered' ? '발주완료' : '미발주'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  });
+                });
+                return rows;
+              })()}
             </tbody>
           </table>
         </div>
