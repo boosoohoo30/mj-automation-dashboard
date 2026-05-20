@@ -10,8 +10,8 @@ const SAMPLE_ITEMS: POWaitingItem[] = [
     am: 'DJ', customer: 'Uniqconn', project: 'UC60Plus_C4', alCode: 'CC65058A',
     pm: 'ES', pmAssigned: true, vendor: 'TSMC', stage: 'FAB',
     category1: 'MPW', category2: 'Cyber shuttle', category3: 'Block portion',
-    expectedQty: 1, expectedUnitPrice: 45000, expectedAmount: 45000,
-    currentQty: 1, currentUnitPrice: 45000, currentAmount: 45000,
+    expectedQty: 1, expectedUnitPrice: 45000, expectedAmount: 45000, expectedAmountKrw: 60750000,
+    currentQty: 1, currentUnitPrice: 45000, currentAmount: 45000, currentAmountKrw: 60750000,
     invoiceTiming: '2606', poStatus: 'pending',
   },
   {
@@ -20,8 +20,8 @@ const SAMPLE_ITEMS: POWaitingItem[] = [
     am: 'DJ', customer: 'Uniqconn', project: 'UC60Plus_C4', alCode: 'CC65058A',
     pm: 'ES', pmAssigned: true, vendor: 'TSMC', stage: 'FAB',
     category1: 'MPW', category2: 'Cyber shuttle', category3: 'Extra wafer fee',
-    expectedQty: 3, expectedUnitPrice: 7500, expectedAmount: 22500,
-    currentQty: 4, currentUnitPrice: 7500, currentAmount: 30000,
+    expectedQty: 3, expectedUnitPrice: 7500, expectedAmount: 22500, expectedAmountKrw: 30375000,
+    currentQty: 4, currentUnitPrice: 7500, currentAmount: 30000, currentAmountKrw: 40500000,
     invoiceTiming: '2606', poStatus: 'pending',
   },
   {
@@ -30,8 +30,8 @@ const SAMPLE_ITEMS: POWaitingItem[] = [
     am: 'SY', customer: 'Fadu', project: 'Albatross_N1B', alCode: 'AA12345B',
     pm: 'KS', pmAssigned: true, vendor: 'TSMC', stage: 'FAB',
     category1: 'Single', category2: 'Wafer Buy', category3: 'Pilot Wafer',
-    expectedQty: 6, expectedUnitPrice: 400, expectedAmount: 2400,
-    currentQty: 6, currentUnitPrice: 400, currentAmount: 2400,
+    expectedQty: 6, expectedUnitPrice: 400, expectedAmount: 2400, expectedAmountKrw: 3240000,
+    currentQty: 6, currentUnitPrice: 400, currentAmount: 2400, currentAmountKrw: 3240000,
     invoiceTiming: '2701', poStatus: 'pending',
   },
   {
@@ -40,8 +40,8 @@ const SAMPLE_ITEMS: POWaitingItem[] = [
     am: 'DJ', customer: 'Uniqconn', project: 'UC60Plus_C4', alCode: 'CC65058A',
     pm: '', pmAssigned: false, vendor: 'ATK4', stage: 'OSAT_PKG',
     category1: 'FcCSP', category2: 'Assembly', category3: 'Assy Price',
-    expectedQty: 1600, expectedUnitPrice: 2, expectedAmount: 3200,
-    currentQty: 1600, currentUnitPrice: 2, currentAmount: 3200,
+    expectedQty: 1600, expectedUnitPrice: 2, expectedAmount: 3200, expectedAmountKrw: 4320000,
+    currentQty: 1600, currentUnitPrice: 2, currentAmount: 3200, currentAmountKrw: 4320000,
     invoiceTiming: '2609', poStatus: 'pending',
   },
 ];
@@ -54,8 +54,9 @@ export default function POWaitingList({ onSave }: Props) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState({ vendor: '', customer: '', project: '', pm: '' });
   const [showRegister, setShowRegister] = useState(false);
+  const [showExpected, setShowExpected] = useState(true);
+  const [showCurrent, setShowCurrent]   = useState(true);
 
-  // 필터만 적용 (탭 없음 - 단계 열에서 FAB/OSAT 구분 가능)
   const filtered = SAMPLE_ITEMS.filter(item => {
     if (!isPoTargetStage(item.stage)) return false;
     if (filters.vendor && item.vendor !== filters.vendor) return false;
@@ -107,6 +108,12 @@ export default function POWaitingList({ onSave }: Props) {
     );
   }
 
+  // 고정 컬럼 수 계산 (체크박스 + 기본정보5 + 분류3 + 발주상태1 = 10)
+  const fixedCols = 10;
+  const expectedCols = showExpected ? 3 : 0;
+  const currentCols  = showCurrent  ? 4 : 0;
+  const totalCols = fixedCols + expectedCols + currentCols;
+
   return (
     <div className="page-container">
       <div className="breadcrumb">
@@ -115,7 +122,6 @@ export default function POWaitingList({ onSave }: Props) {
 
       <div className="page-header">
         <h1 className="page-title">매입 발주 대기 목록</h1>
-        {/* Section 4: 선택 발주 등록 버튼 */}
         <button
           className="btn btn-primary"
           disabled={selectedIds.size === 0}
@@ -144,15 +150,13 @@ export default function POWaitingList({ onSave }: Props) {
           </div>
           <div>
             <label className="form-label">고객사명 (Customer)</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                className="form-input"
-                value={filters.customer}
-                placeholder="검색"
-                onChange={e => setFilters(p => ({ ...p, customer: e.target.value }))}
-              />
-            </div>
+            <input
+              type="text"
+              className="form-input"
+              value={filters.customer}
+              placeholder="검색"
+              onChange={e => setFilters(p => ({ ...p, customer: e.target.value }))}
+            />
           </div>
           <div>
             <label className="form-label">과제명 (Project)</label>
@@ -228,12 +232,41 @@ export default function POWaitingList({ onSave }: Props) {
         </div>
       </div>
 
+      {/* ── 원가 열 토글 버튼 ── */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <button
+          className="btn btn-sm"
+          style={{
+            background: showExpected ? '#fef9c3' : '#f3f4f6',
+            color: showExpected ? '#854d0e' : '#6b7280',
+            border: `1px solid ${showExpected ? '#fde047' : '#e5e7eb'}`,
+            fontWeight: showExpected ? 600 : 400,
+          }}
+          onClick={() => setShowExpected(v => !v)}
+        >
+          {showExpected ? '▼' : '▶'} 예정원가
+          <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.7 }}>(Qty · $ · ₩)</span>
+        </button>
+        <button
+          className="btn btn-sm"
+          style={{
+            background: showCurrent ? '#dcfce7' : '#f3f4f6',
+            color: showCurrent ? '#166534' : '#6b7280',
+            border: `1px solid ${showCurrent ? '#86efac' : '#e5e7eb'}`,
+            fontWeight: showCurrent ? 600 : 400,
+          }}
+          onClick={() => setShowCurrent(v => !v)}
+        >
+          {showCurrent ? '▼' : '▶'} 현재원가
+          <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.7 }}>(Qty · $ · ₩ · Invoice)</span>
+        </button>
+      </div>
+
       {/* ── Section 3: 목록 테이블 (SC-FIN-10 동일 구조) ── */}
       <div className="card">
         <div className="tbl-wrap">
           <table className="tbl">
             <thead>
-              {/* 그룹 헤더 */}
               <tr>
                 <th rowSpan={2} style={{ width: 36 }}>
                   <input
@@ -244,8 +277,16 @@ export default function POWaitingList({ onSave }: Props) {
                 </th>
                 <th colSpan={5} className="th-group">기본정보</th>
                 <th colSpan={3} className="th-group">분류</th>
-                <th colSpan={3} className="th-group" style={{ background: '#f0fdf4', color: '#166534' }}>예정원가</th>
-                <th rowSpan={2}>Invoice<br/>시점</th>
+                {showExpected && (
+                  <th colSpan={3} className="th-group" style={{ background: '#fefce8', color: '#854d0e' }}>
+                    예정원가
+                  </th>
+                )}
+                {showCurrent && (
+                  <th colSpan={4} className="th-group" style={{ background: '#f0fdf4', color: '#15803d' }}>
+                    현재원가
+                  </th>
+                )}
                 <th rowSpan={2}>발주 상태</th>
               </tr>
               <tr>
@@ -257,15 +298,27 @@ export default function POWaitingList({ onSave }: Props) {
                 <th>업체명</th>
                 <th>단계</th>
                 <th>분류1</th>
-                <th style={{ background: '#f0fdf4' }}>Qty</th>
-                <th style={{ background: '#f0fdf4' }}>U/PRC($)</th>
-                <th style={{ background: '#f0fdf4' }}>예정원가($)</th>
+                {showExpected && (
+                  <>
+                    <th style={{ background: '#fefce8' }}>Qty</th>
+                    <th style={{ background: '#fefce8' }}>예정원가($)</th>
+                    <th style={{ background: '#fefce8' }}>예정원가(₩)</th>
+                  </>
+                )}
+                {showCurrent && (
+                  <>
+                    <th style={{ background: '#f0fdf4' }}>Qty</th>
+                    <th style={{ background: '#f0fdf4' }}>현재원가($)</th>
+                    <th style={{ background: '#f0fdf4' }}>현재원가(₩)</th>
+                    <th style={{ background: '#f0fdf4' }}>Invoice시점</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={15} style={{ color: '#9ca3af', padding: '32px', textAlign: 'center' }}>
+                  <td colSpan={totalCols} style={{ color: '#9ca3af', padding: '32px', textAlign: 'center' }}>
                     조회된 항목이 없습니다.
                   </td>
                 </tr>
@@ -294,13 +347,14 @@ export default function POWaitingList({ onSave }: Props) {
                       <td style={{ color: '#374151', fontSize: 12 }}>{rep.customer}</td>
                       <td style={{ color: '#374151', fontSize: 12 }}>{rep.project}</td>
                       <td style={{ color: '#6b7280', fontSize: 12 }}>{rep.alCode}</td>
-                      <td colSpan={6} />
+                      <td colSpan={3} />
+                      {showExpected && <td colSpan={3} />}
+                      {showCurrent  && <td colSpan={4} />}
                       <td>
                         {rep.pmAssigned
                           ? <span className="badge badge-green">{rep.pm}</span>
                           : <span className="badge badge-red">PM 미지정</span>}
                       </td>
-                      <td />
                     </tr>
                   );
 
@@ -318,7 +372,7 @@ export default function POWaitingList({ onSave }: Props) {
                     rows.push(
                       <tr key={`rfq-${rfqNo}`} style={{ background: '#fafbff' }}>
                         <td />
-                        <td colSpan={14} style={{ textAlign: 'left', paddingLeft: 24, fontSize: 11 }}>
+                        <td colSpan={totalCols - 1} style={{ textAlign: 'left', paddingLeft: 24, fontSize: 11 }}>
                           <span style={{ fontWeight: 600, color: '#374151' }}>{rfqNo}</span>
                           {rfqDesc && (
                             <span style={{
@@ -353,12 +407,37 @@ export default function POWaitingList({ onSave }: Props) {
                             </span>
                           </td>
                           <td>{item.category1}</td>
-                          <td style={{ textAlign: 'right', background: '#f9fefb' }}>{item.expectedQty.toLocaleString()}</td>
-                          <td style={{ textAlign: 'right', background: '#f9fefb' }}>{item.expectedUnitPrice.toLocaleString()}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600, background: '#f9fefb', color: '#166534' }}>
-                            ${item.expectedAmount.toLocaleString()}
-                          </td>
-                          <td>{item.invoiceTiming}</td>
+                          {/* 예정원가 (토글) */}
+                          {showExpected && (
+                            <>
+                              <td style={{ textAlign: 'right', background: '#fffef0' }}>
+                                {item.expectedQty.toLocaleString()}
+                              </td>
+                              <td style={{ textAlign: 'right', background: '#fffef0', fontWeight: 600, color: '#854d0e' }}>
+                                ${item.expectedAmount.toLocaleString()}
+                              </td>
+                              <td style={{ textAlign: 'right', background: '#fffef0', color: '#854d0e' }}>
+                                {item.expectedAmountKrw ? `₩${item.expectedAmountKrw.toLocaleString()}` : '-'}
+                              </td>
+                            </>
+                          )}
+                          {/* 현재원가 (토글) */}
+                          {showCurrent && (
+                            <>
+                              <td style={{ textAlign: 'right', background: '#f9fef9' }}>
+                                {item.currentQty.toLocaleString()}
+                              </td>
+                              <td style={{ textAlign: 'right', background: '#f9fef9', fontWeight: 600, color: '#15803d' }}>
+                                ${item.currentAmount.toLocaleString()}
+                              </td>
+                              <td style={{ textAlign: 'right', background: '#f9fef9', color: '#15803d' }}>
+                                {item.currentAmountKrw ? `₩${item.currentAmountKrw.toLocaleString()}` : '-'}
+                              </td>
+                              <td style={{ textAlign: 'center', background: '#f9fef9', fontSize: 11 }}>
+                                {item.invoiceTiming}
+                              </td>
+                            </>
+                          )}
                           <td>
                             <span className={`badge ${item.poStatus === 'ordered' ? 'badge-green' : 'badge-gray'}`}>
                               {item.poStatus === 'ordered' ? '발주완료' : '미발주'}

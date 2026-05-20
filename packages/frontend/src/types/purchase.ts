@@ -18,9 +18,11 @@ export interface SalesItem {
   expectedQty: number;
   expectedUnitPrice: number;
   expectedAmount: number;
+  expectedAmountKrw?: number;
   currentQty: number;
   currentUnitPrice: number;
   currentAmount: number;
+  currentAmountKrw?: number;
   invoiceTiming: string;
 }
 
