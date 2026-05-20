@@ -42,18 +42,13 @@ const SAMPLE_ITEMS: POWaitingItem[] = [
   },
 ];
 
-type TabType = 'FAB' | 'OSAT';
-
 export default function POWaitingList() {
-  const [activeTab, setActiveTab] = useState<TabType>('FAB');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState({ vendor: '', customer: '', project: '', pm: '' });
   const [showRegister, setShowRegister] = useState(false);
 
-  // 필터 + 탭 적용
+  // 필터만 적용 (탭 없음 - 단계 열에서 FAB/OSAT 구분 가능)
   const filtered = SAMPLE_ITEMS.filter(item => {
-    if (activeTab === 'FAB' && !item.stage.startsWith('FAB')) return false;
-    if (activeTab === 'OSAT' && !item.stage.startsWith('OSAT')) return false;
     if (!isPoTargetStage(item.stage)) return false;
     if (filters.vendor && item.vendor !== filters.vendor) return false;
     if (filters.customer && !item.customer.toLowerCase().includes(filters.customer.toLowerCase())) return false;
@@ -228,24 +223,6 @@ export default function POWaitingList() {
 
       {/* ── Section 3: 목록 테이블 ── */}
       <div className="card">
-        {/* 탭 */}
-        <div style={{ padding: '0 20px' }}>
-          <div className="tabs">
-            <button
-              className={`tab-btn ${activeTab === 'FAB' ? 'active' : ''}`}
-              onClick={() => setActiveTab('FAB')}
-            >
-              FAB
-            </button>
-            <button
-              className={`tab-btn ${activeTab === 'OSAT' ? 'active' : ''}`}
-              onClick={() => setActiveTab('OSAT')}
-            >
-              OSAT PKG·TEST·ETC
-            </button>
-          </div>
-        </div>
-
         <div className="tbl-wrap">
           <table className="tbl">
             <thead>
