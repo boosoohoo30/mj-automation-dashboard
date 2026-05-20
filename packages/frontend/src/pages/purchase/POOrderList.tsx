@@ -27,22 +27,25 @@ export interface SavedPO {
     poQty: number;
     unitPrice: number;
     amount: number;
-    // 예정원가
-    expectedQty?: number;
-    expectedUnitPrice?: number;
-    expectedAmountUsd?: number;
-    expectedAmountKrw?: number;
-    // 현재원가
-    currentQty?: number;
-    currentUnitPrice?: number;
-    currentAmountUsd?: number;
-    currentAmountKrw?: number;
-    invoiceTiming?: string;
+    remark?: string;
     vcaPrice?: number;
     parPrice?: number;
     specIn?: number;
     netlistIn?: number;
   }[];
+}
+
+// 라인 아이템 Remark: TSMC → rebate 요약, 비TSMC → remark 필드
+function lineRemark(item: SavedPO['lineItems'][0], isTsmc: boolean): string {
+  const parts: string[] = [];
+  if (isTsmc) {
+    if (item.vcaPrice)  parts.push(`VCA $${item.vcaPrice.toLocaleString()}`);
+    if (item.parPrice)  parts.push(`Par $${item.parPrice.toLocaleString()}`);
+    if (item.specIn)    parts.push(`Spec-in $${item.specIn.toLocaleString()}`);
+    if (item.netlistIn) parts.push(`Netlist-in $${item.netlistIn.toLocaleString()}`);
+  }
+  if (item.remark) parts.push(item.remark);
+  return parts.join(' / ');
 }
 
 const SAMPLE_ORDERS: SavedPO[] = [
@@ -58,17 +61,11 @@ const SAMPLE_ORDERS: SavedPO[] = [
       {
         id: 'l-001', stage: 'FAB', category1: 'MPW', category2: 'Cyber shuttle', category3: 'Block portion',
         poItemName: 'MPW Shuttle Run - Block portion', poQty: 1, unitPrice: 45000, amount: 45000,
-        expectedQty: 1, expectedUnitPrice: 45000, expectedAmountUsd: 45000, expectedAmountKrw: 65000,
-        currentQty: 1, currentUnitPrice: 45000, currentAmountUsd: 45000, currentAmountKrw: 65000,
-        invoiceTiming: '2606',
         vcaPrice: 43000,
       },
       {
         id: 'l-002', stage: 'FAB', category1: 'MPW', category2: 'Cyber shuttle', category3: 'Extra wafer fee',
         poItemName: 'MPW Extra Wafer', poQty: 3, unitPrice: 7500, amount: 22500,
-        expectedQty: 3, expectedUnitPrice: 7500, expectedAmountUsd: 22500, expectedAmountKrw: 27000,
-        currentQty: 4, currentUnitPrice: 7500, currentAmountUsd: 30000, currentAmountKrw: 30000,
-        invoiceTiming: '2606',
         parPrice: 7200,
       },
     ],
@@ -85,9 +82,6 @@ const SAMPLE_ORDERS: SavedPO[] = [
       {
         id: 'l-003', stage: 'OSAT_PKG', category1: 'FcCSP', category2: 'Assembly', category3: 'Assy Price',
         poItemName: 'FC-CSP Assembly', poQty: 1600, unitPrice: 2, amount: 3200,
-        expectedQty: 1600, expectedUnitPrice: 2, expectedAmountUsd: 3200, expectedAmountKrw: 3200000,
-        currentQty: 1600, currentUnitPrice: 2, currentAmountUsd: 3200, currentAmountKrw: 3200000,
-        invoiceTiming: '2609',
       },
     ],
   },
@@ -98,48 +92,25 @@ interface Props {
   onRowClick?: (order: SavedPO) => void;
 }
 
-function buildRemark(order: SavedPO): string {
-  if (order.vendor === 'TSMC') {
-    const rebates: string[] = [];
-    order.lineItems.forEach(item => {
-      if (item.vcaPrice)  rebates.push(`VCA ${item.vcaPrice.toLocaleString()}`);
-      if (item.parPrice)  rebates.push(`Par ${item.parPrice.toLocaleString()}`);
-      if (item.specIn)    rebates.push(`Spec-in ${item.specIn.toLocaleString()}`);
-      if (item.netlistIn) rebates.push(`Netlist-in ${item.netlistIn.toLocaleString()}`);
-    });
-    return rebates.length ? rebates.join(' / ') : '-';
-  }
-  return order.spec || '-';
-}
-
-// 다건 라인 아이템 합계
-function sumField(items: SavedPO['lineItems'], field: keyof SavedPO['lineItems'][0]): number {
-  return items.reduce((s, i) => s + (Number(i[field]) || 0), 0);
-}
+// 총 컬럼 수: 단계(1) + 분류3(3) + 발주품목명(1) + Qty(1) + U/PRC(1) + Amount(1) + Remark(1) + 액션(1) = 10
+const TOTAL_COLS = 10;
 
 export default function POOrderList({ orders = SAMPLE_ORDERS, onRowClick }: Props) {
   const [filters, setFilters] = useState({ vendor: '', poNo: '', project: '', dateFrom: '', dateTo: '' });
-  const [showExpected, setShowExpected] = useState(true);
-  const [showCurrent, setShowCurrent]   = useState(true);
 
   const filtered = orders.filter(po => {
-    if (filters.vendor  && !po.vendor.toLowerCase().includes(filters.vendor.toLowerCase()))   return false;
-    if (filters.poNo    && !po.poNo.toLowerCase().includes(filters.poNo.toLowerCase()))       return false;
-    if (filters.project && !po.project.toLowerCase().includes(filters.project.toLowerCase())) return false;
+    if (filters.vendor   && !po.vendor.toLowerCase().includes(filters.vendor.toLowerCase()))   return false;
+    if (filters.poNo     && !po.poNo.toLowerCase().includes(filters.poNo.toLowerCase()))       return false;
+    if (filters.project  && !po.project.toLowerCase().includes(filters.project.toLowerCase())) return false;
     if (filters.dateFrom && po.poDate < filters.dateFrom) return false;
     if (filters.dateTo   && po.poDate > filters.dateTo)   return false;
     return true;
   });
 
-  const handleExport = (order: SavedPO) => {
+  const handleExport = (e: React.MouseEvent, order: SavedPO) => {
+    e.stopPropagation();
     exportPOExcel(order as unknown as POExportData);
   };
-
-  // 고정 컬럼 수 (기본정보+분류+발주정보+원가+Remark+버튼)
-  const fixedCols = 14;
-  const expectedCols = showExpected ? 3 : 0;
-  const currentCols  = showCurrent  ? 4 : 0;
-  const totalCols = fixedCols + expectedCols + currentCols;
 
   return (
     <div className="page-container">
@@ -190,213 +161,166 @@ export default function POOrderList({ orders = SAMPLE_ORDERS, onRowClick }: Prop
         </div>
       </div>
 
-      {/* ── 원가 열 토글 버튼 ── */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <button
-          className="btn btn-sm"
-          style={{
-            background: showExpected ? '#fef9c3' : '#f3f4f6',
-            color: showExpected ? '#854d0e' : '#6b7280',
-            border: `1px solid ${showExpected ? '#fde047' : '#e5e7eb'}`,
-            fontWeight: showExpected ? 600 : 400,
-          }}
-          onClick={() => setShowExpected(v => !v)}
-        >
-          {showExpected ? '▼' : '▶'} 예정원가
-          <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.7 }}>
-            (Qty · $ · ₩)
-          </span>
-        </button>
-        <button
-          className="btn btn-sm"
-          style={{
-            background: showCurrent ? '#dcfce7' : '#f3f4f6',
-            color: showCurrent ? '#166534' : '#6b7280',
-            border: `1px solid ${showCurrent ? '#86efac' : '#e5e7eb'}`,
-            fontWeight: showCurrent ? 600 : 400,
-          }}
-          onClick={() => setShowCurrent(v => !v)}
-        >
-          {showCurrent ? '▼' : '▶'} 현재원가
-          <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.7 }}>
-            (Qty · $ · ₩ · Invoice)
-          </span>
-        </button>
-      </div>
-
       {/* ── 목록 테이블 ── */}
       <div className="card">
         <div className="tbl-wrap">
           <table className="tbl">
             <thead>
               <tr>
-                <th colSpan={3} className="th-group">기본정보</th>
-                <th colSpan={2} className="th-group">분류</th>
-                <th colSpan={4} className="th-group" style={{ background: '#f0fdf4', color: '#166534' }}>발주 정보</th>
+                <th colSpan={4} className="th-group">분류</th>
+                <th className="th-group" style={{ background: '#fffbeb', color: '#92400e' }}>발주품목명</th>
                 <th colSpan={3} className="th-group" style={{ background: '#eff6ff', color: '#1d4ed8' }}>발주 원가</th>
-                {showExpected && (
-                  <th colSpan={3} className="th-group" style={{ background: '#fefce8', color: '#854d0e' }}>
-                    예정원가
-                  </th>
-                )}
-                {showCurrent && (
-                  <th colSpan={4} className="th-group" style={{ background: '#f0fdf4', color: '#15803d' }}>
-                    현재원가
-                  </th>
-                )}
-                <th rowSpan={2} style={{ minWidth: 100 }}>
+                <th rowSpan={2} style={{ minWidth: 110 }}>
                   Remark
-                  <div style={{ fontSize: 10, fontWeight: 400, color: '#9ca3af' }}>
-                    TSMC: Rebate<br />비TSMC: SPEC
-                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 400, color: '#9ca3af' }}>TSMC: Rebate / 비TSMC: 비고</div>
                 </th>
-                <th rowSpan={2} style={{ width: 36 }} />
+                <th rowSpan={2} style={{ width: 40 }} />
               </tr>
               <tr>
-                <th>외주처</th>
-                <th>Customer</th>
-                <th>Project</th>
-                <th>대분류</th>
-                <th>중분류</th>
-                <th style={{ background: '#f0fdf4', minWidth: 150 }}>PO No.</th>
-                <th style={{ background: '#f0fdf4' }}>PO Date</th>
-                <th style={{ background: '#f0fdf4' }}>TM Code</th>
-                <th style={{ background: '#f0fdf4' }}>QUO No.</th>
+                <th>단계</th>
+                <th>분류1</th>
+                <th>분류2</th>
+                <th>분류3</th>
+                <th style={{ background: '#fffde7', minWidth: 160, textAlign: 'left' }}>발주품목명</th>
                 <th style={{ background: '#eff6ff' }}>Qty</th>
                 <th style={{ background: '#eff6ff' }}>U/PRC($)</th>
-                <th style={{ background: '#eff6ff' }}>Amount($)</th>
-                {showExpected && (
-                  <>
-                    <th style={{ background: '#fefce8' }}>원가</th>
-                    <th style={{ background: '#fefce8' }}>예정원가($)</th>
-                    <th style={{ background: '#fefce8' }}>예정원가(₩)</th>
-                  </>
-                )}
-                {showCurrent && (
-                  <>
-                    <th style={{ background: '#f0fdf4' }}>원가</th>
-                    <th style={{ background: '#f0fdf4' }}>현재원가($)</th>
-                    <th style={{ background: '#f0fdf4' }}>현재원가(₩)</th>
-                    <th style={{ background: '#f0fdf4' }}>Invoice시점</th>
-                  </>
-                )}
+                <th style={{ background: '#eff6ff', minWidth: 90 }}>Amount($)</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={totalCols} style={{ color: '#9ca3af', padding: '48px', textAlign: 'center' }}>
+                  <td colSpan={TOTAL_COLS} style={{ color: '#9ca3af', padding: '48px', textAlign: 'center' }}>
                     조회된 발주가 없습니다.
                   </td>
                 </tr>
               )}
               {filtered.map(order => {
                 const isTsmc = order.vendor === 'TSMC';
-                const remark = buildRemark(order);
-                const firstItem = order.lineItems[0];
-                const multiItem = order.lineItems.length > 1;
-                const totalQty = sumField(order.lineItems, 'poQty');
-                const totalExpUsd = sumField(order.lineItems, 'expectedAmountUsd');
-                const totalExpKrw = sumField(order.lineItems, 'expectedAmountKrw');
-                const totalCurUsd = sumField(order.lineItems, 'currentAmountUsd');
-                const totalCurKrw = sumField(order.lineItems, 'currentAmountKrw');
-                // Invoice 시점: 복수면 첫 항목 표시
-                const invoiceTiming = firstItem?.invoiceTiming ?? '-';
+                const totalAmt = order.lineItems.reduce((s, i) => s + i.amount, 0);
 
                 return (
-                  <tr key={order.id} style={{ cursor: 'pointer' }} onClick={() => onRowClick?.(order)}>
-                    <td>
-                      <span className={`badge ${isTsmc ? 'badge-blue' : 'badge-orange'}`}>
-                        {order.vendor}
-                      </span>
-                    </td>
-                    <td>{order.customer}</td>
-                    <td style={{ textAlign: 'left', maxWidth: 120 }}>{order.project}</td>
-                    <td>
-                      {multiItem
-                        ? <span style={{ color: '#6b7280', fontSize: 11 }}>{firstItem.category1} 외 {order.lineItems.length - 1}건</span>
-                        : firstItem.category1}
-                    </td>
-                    <td>
-                      {multiItem
-                        ? <span style={{ color: '#6b7280', fontSize: 11 }}>{firstItem.category2} 외 {order.lineItems.length - 1}건</span>
-                        : firstItem.category2}
-                    </td>
-                    <td style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 600, color: '#1d4ed8' }}>
-                      {order.poNo}
-                    </td>
-                    <td>{order.poDate}</td>
-                    <td style={{ color: '#6b7280', fontSize: 11 }}>
-                      {isTsmc ? (order.tmCode || '-') : '-'}
-                    </td>
-                    <td style={{ color: '#6b7280', fontSize: 11 }}>{order.quoteNo || '-'}</td>
-                    {/* 발주 원가 */}
-                    <td style={{ textAlign: 'right', background: '#fafeff' }}>
-                      {totalQty.toLocaleString()}
-                    </td>
-                    <td style={{ textAlign: 'right', background: '#fafeff' }}>
-                      {multiItem ? '-' : firstItem.unitPrice.toLocaleString()}
-                    </td>
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: '#1d4ed8', background: '#fafeff' }}>
-                      ${order.totalAmount.toLocaleString()}
-                    </td>
-                    {/* 예정원가 (토글) */}
-                    {showExpected && (
-                      <>
-                        <td style={{ textAlign: 'right', background: '#fffef0' }}>
-                          {sumField(order.lineItems, 'expectedQty').toLocaleString()}
-                        </td>
-                        <td style={{ textAlign: 'right', background: '#fffef0', fontWeight: 600, color: '#854d0e' }}>
-                          ${totalExpUsd.toLocaleString()}
-                        </td>
-                        <td style={{ textAlign: 'right', background: '#fffef0', color: '#854d0e' }}>
-                          ₩{totalExpKrw.toLocaleString()}
-                        </td>
-                      </>
-                    )}
-                    {/* 현재원가 (토글) */}
-                    {showCurrent && (
-                      <>
-                        <td style={{ textAlign: 'right', background: '#f9fef9' }}>
-                          {sumField(order.lineItems, 'currentQty').toLocaleString()}
-                        </td>
-                        <td style={{ textAlign: 'right', background: '#f9fef9', fontWeight: 600, color: '#15803d' }}>
-                          ${totalCurUsd.toLocaleString()}
-                        </td>
-                        <td style={{ textAlign: 'right', background: '#f9fef9', color: '#15803d' }}>
-                          ₩{totalCurKrw.toLocaleString()}
-                        </td>
-                        <td style={{ textAlign: 'center', background: '#f9fef9', fontSize: 11, color: '#374151' }}>
-                          {invoiceTiming}
-                        </td>
-                      </>
-                    )}
-                    <td style={{ maxWidth: 140, fontSize: 11, color: isTsmc ? '#6d28d9' : '#374151' }}>
-                      {remark}
-                    </td>
-                    <td onClick={e => e.stopPropagation()}>
-                      <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '3px 8px' }}
-                        onClick={() => handleExport(order)} title="Excel 다운로드">
-                        📊
-                      </button>
-                    </td>
-                  </tr>
+                  <React.Fragment key={order.id}>
+                    {/* ── PO 그룹 헤더 행 ── */}
+                    <tr
+                      style={{ background: isTsmc ? '#f0f4ff' : '#fdf6f0', cursor: onRowClick ? 'pointer' : 'default' }}
+                      onClick={() => onRowClick?.(order)}
+                    >
+                      <td colSpan={TOTAL_COLS} style={{ padding: '10px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          {/* 외주처 + PO No. */}
+                          <span className={`badge ${isTsmc ? 'badge-blue' : 'badge-orange'}`}>
+                            {order.vendor}
+                          </span>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12, color: '#1d4ed8' }}>
+                            {order.poNo}
+                          </span>
+                          <span style={{ color: '#6b7280', fontSize: 12 }}>{order.poDate}</span>
+
+                          {/* 구분선 */}
+                          <span style={{ color: '#d1d5db' }}>|</span>
+
+                          {/* 고객사 / 과제 */}
+                          <span style={{ fontSize: 12, color: '#374151' }}>{order.customer}</span>
+                          <span style={{ fontSize: 12, color: '#374151', fontWeight: 500 }}>{order.project}</span>
+
+                          {order.quoteNo && (
+                            <>
+                              <span style={{ color: '#d1d5db' }}>|</span>
+                              <span style={{ fontSize: 11, color: '#6b7280' }}>QUO: {order.quoteNo}</span>
+                            </>
+                          )}
+
+                          {/* TSMC 전용 정보 */}
+                          {isTsmc && (
+                            <>
+                              <span style={{ color: '#d1d5db' }}>|</span>
+                              {order.tmCode && (
+                                <span style={{
+                                  background: '#f5f3ff', color: '#6d28d9',
+                                  padding: '1px 8px', borderRadius: 4, fontSize: 11, fontWeight: 500,
+                                }}>
+                                  TM: {order.tmCode}
+                                </span>
+                              )}
+                              {order.processName && (
+                                <span style={{
+                                  background: '#eff6ff', color: '#1d4ed8',
+                                  padding: '1px 8px', borderRadius: 4, fontSize: 11,
+                                }}>
+                                  {order.processName}
+                                </span>
+                              )}
+                            </>
+                          )}
+
+                          {/* 비TSMC SPEC */}
+                          {!isTsmc && order.spec && (
+                            <>
+                              <span style={{ color: '#d1d5db' }}>|</span>
+                              <span style={{ fontSize: 11, color: '#6b7280' }}>SPEC: {order.spec}</span>
+                            </>
+                          )}
+
+                          {/* 📊 버튼 */}
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ marginLeft: 'auto', fontSize: 11, padding: '2px 8px' }}
+                            onClick={e => handleExport(e, order)}
+                            title="Excel 다운로드"
+                          >
+                            📊 Excel
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+
+                    {/* ── 라인 아이템 행 ── */}
+                    {order.lineItems.map(item => {
+                      const remark = lineRemark(item, isTsmc);
+                      return (
+                        <tr key={item.id} style={{ background: '#fff' }}>
+                          <td>
+                            <span className={`badge ${item.stage.startsWith('FAB') ? 'badge-blue' : 'badge-orange'}`}>
+                              {item.stage}
+                            </span>
+                          </td>
+                          <td>{item.category1}</td>
+                          <td style={{ color: '#6b7280', fontSize: 12 }}>{item.category2}</td>
+                          <td style={{ color: '#6b7280', fontSize: 12 }}>{item.category3}</td>
+                          <td style={{ textAlign: 'left', maxWidth: 200, fontSize: 12 }}>{item.poItemName}</td>
+                          <td style={{ textAlign: 'right' }}>{item.poQty.toLocaleString()}</td>
+                          <td style={{ textAlign: 'right', color: '#6b7280' }}>{item.unitPrice.toLocaleString()}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600, color: '#1d4ed8', background: '#fafeff' }}>
+                            ${item.amount.toLocaleString()}
+                          </td>
+                          <td style={{ fontSize: 11, color: isTsmc ? '#6d28d9' : '#374151' }}>
+                            {remark || '-'}
+                          </td>
+                          <td />
+                        </tr>
+                      );
+                    })}
+
+                    {/* ── 합계 행 ── */}
+                    <tr style={{ background: '#f8f9fb', fontWeight: 700, borderTop: '1px solid #e5e7eb' }}>
+                      <td colSpan={7} style={{ textAlign: 'right', color: '#374151', fontSize: 12, paddingRight: 12 }}>
+                        합계 ({order.lineItems.length}건)
+                      </td>
+                      <td style={{ textAlign: 'right', color: '#1d4ed8', fontSize: 14, background: '#fafeff' }}>
+                        ${totalAmt.toLocaleString()}
+                      </td>
+                      <td colSpan={2} />
+                    </tr>
+                  </React.Fragment>
                 );
               })}
             </tbody>
           </table>
         </div>
 
-        <div style={{ padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '10px 20px' }}>
           <span style={{ fontSize: 12, color: '#6b7280' }}>총 {filtered.length}건</span>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {['이전', '1', '2', '3', '4', '5', '…', '이후'].map(p => (
-              <button key={p} className={`btn btn-ghost btn-sm`}
-                style={{ minWidth: 32, ...(p === '1' ? { background: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe' } : {}) }}>
-                {p}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
     </div>
