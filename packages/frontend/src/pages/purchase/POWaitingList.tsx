@@ -52,7 +52,7 @@ interface Props {
 
 export default function POWaitingList({ onSave }: Props) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [filters, setFilters] = useState({ vendor: '', customer: '', project: '', pm: '' });
+  const [filters, setFilters] = useState({ vendor: '', customer: '', project: '', pm: '', alCode: '', poStatus: '', dateFrom: '', dateTo: '' });
   const [showRegister, setShowRegister] = useState(false);
   const [showExpected, setShowExpected] = useState(true);
   const [showCurrent, setShowCurrent]   = useState(true);
@@ -63,6 +63,10 @@ export default function POWaitingList({ onSave }: Props) {
     if (filters.customer && !item.customer.toLowerCase().includes(filters.customer.toLowerCase())) return false;
     if (filters.project && !item.project.toLowerCase().includes(filters.project.toLowerCase())) return false;
     if (filters.pm && item.pm !== filters.pm) return false;
+    if (filters.alCode && !item.alCode.toLowerCase().includes(filters.alCode.toLowerCase())) return false;
+    if (filters.poStatus && item.poStatus !== filters.poStatus) return false;
+    if (filters.dateFrom && item.invoiceTiming < filters.dateFrom) return false;
+    if (filters.dateTo   && item.invoiceTiming > filters.dateTo)   return false;
     return true;
   });
 
@@ -133,14 +137,12 @@ export default function POWaitingList({ onSave }: Props) {
 
       {/* ── Section 1: 필터 ── */}
       <div className="card" style={{ padding: '16px 20px', marginBottom: 16 }}>
-        <div className="grid-4" style={{ gap: '12px 20px' }}>
+        {/* 1행 */}
+        <div className="grid-4" style={{ gap: '12px 20px', marginBottom: 12 }}>
           <div>
             <label className="form-label">외주처</label>
-            <select
-              className="form-select"
-              value={filters.vendor}
-              onChange={e => setFilters(p => ({ ...p, vendor: e.target.value }))}
-            >
+            <select className="form-select" value={filters.vendor}
+              onChange={e => setFilters(p => ({ ...p, vendor: e.target.value }))}>
               <option value="">전체</option>
               <option>TSMC</option>
               <option>ATK4</option>
@@ -150,31 +152,18 @@ export default function POWaitingList({ onSave }: Props) {
           </div>
           <div>
             <label className="form-label">고객사명 (Customer)</label>
-            <input
-              type="text"
-              className="form-input"
-              value={filters.customer}
-              placeholder="검색"
-              onChange={e => setFilters(p => ({ ...p, customer: e.target.value }))}
-            />
+            <input type="text" className="form-input" value={filters.customer} placeholder="검색"
+              onChange={e => setFilters(p => ({ ...p, customer: e.target.value }))} />
           </div>
           <div>
             <label className="form-label">과제명 (Project)</label>
-            <input
-              type="text"
-              className="form-input"
-              value={filters.project}
-              placeholder="과제명 또는 품번 검색"
-              onChange={e => setFilters(p => ({ ...p, project: e.target.value }))}
-            />
+            <input type="text" className="form-input" value={filters.project} placeholder="과제명 또는 품번 검색"
+              onChange={e => setFilters(p => ({ ...p, project: e.target.value }))} />
           </div>
           <div>
             <label className="form-label">PM</label>
-            <select
-              className="form-select"
-              value={filters.pm}
-              onChange={e => setFilters(p => ({ ...p, pm: e.target.value }))}
-            >
+            <select className="form-select" value={filters.pm}
+              onChange={e => setFilters(p => ({ ...p, pm: e.target.value }))}>
               <option value="">전체</option>
               <option value="ES">ES</option>
               <option value="JH">JH</option>
@@ -182,11 +171,38 @@ export default function POWaitingList({ onSave }: Props) {
             </select>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => setFilters({ vendor: '', customer: '', project: '', pm: '' })}
-          >
+        {/* 2행 */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '12px 20px', marginBottom: 12 }}>
+          <div>
+            <label className="form-label">AL Code</label>
+            <input type="text" className="form-input" value={filters.alCode} placeholder="AL Code 검색"
+              onChange={e => setFilters(p => ({ ...p, alCode: e.target.value }))} />
+          </div>
+          <div>
+            <label className="form-label">발주 상태</label>
+            <select className="form-select" value={filters.poStatus}
+              onChange={e => setFilters(p => ({ ...p, poStatus: e.target.value }))}>
+              <option value="">전체</option>
+              <option value="pending">미발주</option>
+              <option value="ordered">발주완료</option>
+            </select>
+          </div>
+          <div>
+            <label className="form-label">Invoice 기간 (YYMM)</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input type="text" className="form-input" value={filters.dateFrom} placeholder="예) 2601"
+                maxLength={4} style={{ maxWidth: 100 }}
+                onChange={e => setFilters(p => ({ ...p, dateFrom: e.target.value }))} />
+              <span style={{ color: '#9ca3af', flexShrink: 0 }}>~</span>
+              <input type="text" className="form-input" value={filters.dateTo} placeholder="예) 2612"
+                maxLength={4} style={{ maxWidth: 100 }}
+                onChange={e => setFilters(p => ({ ...p, dateTo: e.target.value }))} />
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button className="btn btn-ghost btn-sm"
+            onClick={() => setFilters({ vendor: '', customer: '', project: '', pm: '', alCode: '', poStatus: '', dateFrom: '', dateTo: '' })}>
             ↺ 초기화
           </button>
           <button className="btn btn-primary btn-sm">Q 검색</button>
