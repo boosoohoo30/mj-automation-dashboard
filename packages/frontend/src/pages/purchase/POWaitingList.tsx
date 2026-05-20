@@ -6,6 +6,7 @@ import PurchaseOrderRegister from './PurchaseOrderRegister';
 const SAMPLE_ITEMS: POWaitingItem[] = [
   {
     id: 'w-001', salesOrderNo: 'AS-영업1팀-251014-003', rfqNo: 'RFQ-260423-001',
+    rfqDescription: '65nm CMOS MSRF GP+ 12inch',
     am: 'DJ', customer: 'Uniqconn', project: 'UC60Plus_C4', alCode: 'CC65058A',
     pm: 'ES', pmAssigned: true, vendor: 'TSMC', stage: 'FAB',
     category1: 'MPW', category2: 'Cyber shuttle', category3: 'Block portion',
@@ -15,6 +16,7 @@ const SAMPLE_ITEMS: POWaitingItem[] = [
   },
   {
     id: 'w-002', salesOrderNo: 'AS-영업1팀-251014-003', rfqNo: 'RFQ-260423-001',
+    rfqDescription: '65nm CMOS MSRF GP+ 12inch',
     am: 'DJ', customer: 'Uniqconn', project: 'UC60Plus_C4', alCode: 'CC65058A',
     pm: 'ES', pmAssigned: true, vendor: 'TSMC', stage: 'FAB',
     category1: 'MPW', category2: 'Cyber shuttle', category3: 'Extra wafer fee',
@@ -24,6 +26,7 @@ const SAMPLE_ITEMS: POWaitingItem[] = [
   },
   {
     id: 'w-003', salesOrderNo: 'AS-영업2팀-260101', rfqNo: 'RFQ-260301-001',
+    rfqDescription: '180nm CMOS LOGIC 8inch',
     am: 'SY', customer: 'Fadu', project: 'Albatross_N1B', alCode: 'AA12345B',
     pm: 'KS', pmAssigned: true, vendor: 'TSMC', stage: 'FAB',
     category1: 'Single', category2: 'Wafer Buy', category3: 'Pilot Wafer',
@@ -33,6 +36,7 @@ const SAMPLE_ITEMS: POWaitingItem[] = [
   },
   {
     id: 'w-004', salesOrderNo: 'AS-영업1팀-260407-003', rfqNo: 'RFQ-260202-001',
+    rfqDescription: '65nm CMOS MSRF GP+ 12inch',
     am: 'DJ', customer: 'Uniqconn', project: 'UC60Plus_C4', alCode: 'CC65058A',
     pm: '', pmAssigned: false, vendor: 'ATK4', stage: 'OSAT_PKG',
     category1: 'FcCSP', category2: 'Assembly', category3: 'Assy Price',
@@ -309,12 +313,22 @@ export default function POWaitingList({ onSave }: Props) {
                   });
 
                   rfqGroups.forEach((rfqItems, rfqNo) => {
-                    // ── RFQ# 서브 헤더 행 ──
+                    const rfqDesc = rfqItems[0]?.rfqDescription;
+                    // ── RFQ# 서브 헤더 행 (공정명 포함) ──
                     rows.push(
                       <tr key={`rfq-${rfqNo}`} style={{ background: '#fafbff' }}>
                         <td />
-                        <td colSpan={14} style={{ textAlign: 'left', paddingLeft: 24, color: '#6b7280', fontSize: 11 }}>
+                        <td colSpan={14} style={{ textAlign: 'left', paddingLeft: 24, fontSize: 11 }}>
                           <span style={{ fontWeight: 600, color: '#374151' }}>{rfqNo}</span>
+                          {rfqDesc && (
+                            <span style={{
+                              marginLeft: 10, color: '#1d4ed8', fontWeight: 500,
+                              background: '#eff6ff', padding: '1px 8px',
+                              borderRadius: 4, fontSize: 11,
+                            }}>
+                              {rfqDesc}
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );

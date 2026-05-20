@@ -3,6 +3,7 @@ export interface SalesItem {
   id: string;
   salesOrderNo: string;   // 매출기안#
   rfqNo: string;          // RFQ#
+  rfqDescription: string; // 공정명 (예: 65nm CMOS MSRF GP+ 12inch)
   am: string;
   customer: string;
   project: string;

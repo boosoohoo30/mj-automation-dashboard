@@ -119,7 +119,10 @@ export default function PurchaseOrderRegister({ selectedItems, onCancel, onSave 
     setAlCode(rep.alCode);
     setSalesOrderNo(rep.salesOrderNo);
     setRfqNo(rep.rfqNo);
-    if (rep.vendor === 'TSMC') setTsmcType('MPW');
+    if (rep.vendor === 'TSMC') {
+      setTsmcType('MPW');
+      setProcessName(rep.rfqDescription ?? '');
+    }
     setLineItems(selectedItems.map(toLineItem));
   }, []);
 
