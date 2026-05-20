@@ -42,7 +42,11 @@ const SAMPLE_ITEMS: POWaitingItem[] = [
   },
 ];
 
-export default function POWaitingList() {
+interface Props {
+  onSave?: (data: Record<string, unknown>) => void;
+}
+
+export default function POWaitingList({ onSave }: Props) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState({ vendor: '', customer: '', project: '', pm: '' });
   const [showRegister, setShowRegister] = useState(false);
@@ -91,8 +95,7 @@ export default function POWaitingList() {
         selectedItems={selectedItems}
         onCancel={() => setShowRegister(false)}
         onSave={(data) => {
-          console.log('저장:', data);
-          alert('발주가 저장되었습니다.');
+          onSave?.(data);
           setShowRegister(false);
           setSelectedIds(new Set());
         }}
